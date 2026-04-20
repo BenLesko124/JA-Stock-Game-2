@@ -1,0 +1,848 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>JA Stock Market Challenge</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:Georgia,serif;background:linear-gradient(160deg,#07090f 0%,#0c1626 60%,#07090f 100%);color:#f1f5f9;min-height:100vh;}
+input,select,button{font-family:Georgia,serif;}
+.header{background:rgba(255,255,255,0.04);border-bottom:2px solid #4ade80;padding:11px 18px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;}
+.logo{background:#4ade80;color:#0a0f1e;font-weight:900;font-size:16px;padding:3px 9px;border-radius:4px;letter-spacing:1px;margin-right:10px;flex-shrink:0;}
+.btn{background:#4ade80;color:#0a0f1e;border:none;border-radius:9px;padding:11px 22px;font-size:14px;font-weight:800;cursor:pointer;}
+.btn:disabled{opacity:0.3;cursor:not-allowed;}
+.btn-ghost{background:rgba(255,255,255,0.08);color:#94a3b8;border:1px solid rgba(255,255,255,0.12);}
+.card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 18px;}
+.lbl{font-size:11px;font-weight:800;color:#475569;letter-spacing:2px;text-transform:uppercase;margin-bottom:10px;display:block;}
+.inp{width:100%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.15);border-radius:7px;padding:8px 11px;color:#f1f5f9;font-size:14px;outline:none;font-family:Georgia,serif;}
+.sel{background:#1e3a5f;border:1px solid rgba(255,255,255,0.2);border-radius:7px;padding:6px 10px;color:#f1f5f9;font-size:12px;outline:none;}
+.bottom-bar{position:fixed;bottom:0;left:0;right:0;background:rgba(7,9,15,0.96);border-top:1px solid rgba(255,255,255,0.08);padding:12px 20px;display:flex;justify-content:space-between;align-items:center;z-index:200;}
+.screen{display:none;min-height:100vh;}
+.screen.active{display:block;}
+.err{background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:10px 14px;color:#f87171;font-size:13px;margin-bottom:14px;display:none;}
+@media(max-width:600px){.g2{grid-template-columns:1fr!important;}.sgrid{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))!important;}}
+</style>
+</head>
+<body>
+
+<!-- HOME -->
+<div id="s-home" class="screen active">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo">JA</span><div><div style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Stock Market Challenge</div><div style="font-size:10px;color:#334155;">Multiplayer</div></div></div></div>
+  <div style="max-width:580px;margin:0 auto;padding:48px 20px;text-align:center;">
+    <div style="font-size:64px;margin-bottom:16px;">ðŸ“ˆ</div>
+    <h1 style="font-size:34px;font-weight:900;margin:0 0 12px;">JA Stock Market Challenge</h1>
+    <p style="color:#64748b;font-size:15px;line-height:1.8;margin:0 0 36px;">Real-time multiplayer across any device. Host a game, teams join with a code, everyone invests privately, then results reveal together.</p>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <button class="btn" style="font-size:18px;padding:16px;" onclick="go('host-setup')">ðŸŽ® Host a Game</button>
+      <button class="btn btn-ghost" style="font-size:18px;padding:16px;color:#e2e8f0;" onclick="go('team-join')">ðŸ”— Join a Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- HOST SETUP -->
+<div id="s-host-setup" class="screen">
+  <div class="header" id="hdr-host-setup"><div style="display:flex;align-items:center;"><button class="btn btn-ghost" onclick="go('home')" style="padding:5px 10px;font-size:12px;margin-right:8px;">â†</button><span class="logo">JA</span><div><div style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Host Setup</div></div></div></div>
+  <div style="max-width:680px;margin:0 auto;padding:26px 18px;">
+    <div style="margin-bottom:20px;">
+      <span class="lbl">DIFFICULTY MODE</span>
+      <div style="display:flex;gap:8px;margin-bottom:14px;">
+        <button id="mode-normal" onclick="setMode('normal')" style="flex:1;padding:10px;border-radius:9px;border:2px solid #4ade80;background:#4ade8012;color:#4ade80;font-weight:800;font-size:13px;cursor:pointer;font-family:Georgia,serif;">ðŸ“ˆ Normal</button>
+        <button id="mode-hard" onclick="setMode('hard')" style="flex:1;padding:10px;border-radius:9px;border:2px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.03);color:#64748b;font-weight:800;font-size:13px;cursor:pointer;font-family:Georgia,serif;">ðŸ”¥ Hard Mode</button>
+      </div>
+      <div id="mode-desc" style="font-size:12px;color:#475569;margin-bottom:14px;">Medium difficulty â€” hints clearly guide your picks each round.</div>
+    </div>
+    <div style="margin-bottom:20px;"><span class="lbl">SELECT GAME</span>
+      <div class="g2" style="display:grid;grid-template-columns:1fr 1fr;gap:10px;" id="game-picker"></div>
+    </div>
+    <div style="margin-bottom:20px;"><span class="lbl">MAX TEAMS</span>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;" id="tc-picker"></div>
+    </div>
+    <div style="margin-bottom:20px;">
+      <span class="lbl">DIFFICULTY</span>
+      <div style="display:flex;gap:10px;">
+        <div id="diff-normal" onclick="selDiff('normal')" style="flex:1;border:2px solid #4ade80;background:#4ade8012;border-radius:10px;padding:14px 16px;cursor:pointer;text-align:center;">
+          <div style="font-size:18px;margin-bottom:4px;">ðŸ“°</div>
+          <div style="font-size:13px;font-weight:800;color:#4ade80;">Normal</div>
+          <div style="font-size:11px;color:#475569;margin-top:2px;">Clear hints guide you</div>
+        </div>
+        <div id="diff-hard" onclick="selDiff('hard')" style="flex:1;border:1px solid rgba(255,255,255,0.08);background:rgba(255,255,255,0.03);border-radius:10px;padding:14px 16px;cursor:pointer;text-align:center;">
+          <div style="font-size:18px;margin-bottom:4px;">ðŸ”¥</div>
+          <div style="font-size:13px;font-weight:800;color:#ef4444;">Hard Mode</div>
+          <div style="font-size:11px;color:#475569;margin-top:2px;">Hints may mislead you</div>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:22px;font-size:14px;display:flex;gap:20px;flex-wrap:wrap;">
+      <span>ðŸŽ® <strong id="cfg-game">AI &amp; The New Economy</strong></span>
+      <span>ðŸ‘¥ <strong id="cfg-teams">Up to 6 teams</strong></span>
+      <span>ðŸ’° <strong>$100,000</strong></span>
+      <span>ðŸ“° <strong>10 Rounds</strong></span>
+      <span id="cfg-diff-badge" style="display:none;">ðŸ”¥ <strong style="color:#ef4444;">HARD MODE</strong></span>
+    </div>
+    <button class="btn" style="width:100%;font-size:17px;padding:15px;" id="btn-create" onclick="hostCreate()">ðŸš€ Create Game &amp; Get Code</button>
+  </div>
+</div>
+
+<!-- HOST LOBBY -->
+<div id="s-host-lobby" class="screen">
+  <div class="header" id="hdr-lobby"><div style="display:flex;align-items:center;"><span class="logo" id="lg-lobby">JA</span><div><div id="ttl-lobby" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Lobby</div><div id="sub-lobby" style="font-size:10px;color:#334155;"></div></div></div>
+  <button class="btn btn-ghost" onclick="hostEndGame()" style="font-size:12px;padding:7px 12px;">âœ• Cancel</button></div>
+  <div style="max-width:680px;margin:0 auto;padding:28px 18px;">
+    <div style="text-align:center;margin-bottom:30px;">
+      <div style="font-size:12px;color:#64748b;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;">GAME CODE â€” Share with teams</div>
+      <div id="big-code" style="font-size:68px;font-weight:900;letter-spacing:10px;font-family:monospace;color:#4ade80;"></div>
+      <div style="font-size:13px;color:#475569;margin-top:6px;">Teams open this page and click "Join a Game"</div>
+    </div>
+    <span class="lbl">TEAMS JOINED (<span id="tc-joined">0</span> / <span id="tc-max">6</span>)</span>
+    <div id="lobby-teams" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px;"></div>
+    <button class="btn" style="width:100%;font-size:17px;padding:15px;" id="btn-start" onclick="hostStartRound()" disabled>â–¶ Start Round 1</button>
+  </div>
+</div>
+
+<!-- HOST ROUND -->
+<div id="s-host-round" class="screen">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo" id="lg-hround">JA</span><div><div id="ttl-hround" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Round</div><div style="font-size:10px;color:#334155;">Host View</div></div></div>
+  <button class="btn btn-ghost" onclick="showLB()" style="font-size:12px;padding:7px 12px;">ðŸ“Š Leaderboard</button></div>
+  <div style="max-width:780px;margin:0 auto;padding:20px 16px;">
+    <div id="prog-h" style="display:flex;gap:4px;margin-bottom:16px;"></div>
+    <div id="news-h" style="border-radius:13px;padding:16px 20px;margin-bottom:18px;border:1px solid rgba(250,204,21,0.2);background:rgba(250,204,21,0.04);"></div>
+    <div class="card" style="margin-bottom:18px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span class="lbl" style="margin:0;">SUBMISSIONS</span>
+        <span id="sub-cnt" style="font-size:22px;font-weight:900;color:#facc15;">0/0</span>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);border-radius:99px;height:8px;margin-bottom:14px;overflow:hidden;"><div id="sub-bar" style="height:100%;border-radius:99px;background:#facc15;width:0%;transition:width 0.4s;"></div></div>
+      <div id="sub-teams" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(155px,1fr));gap:8px;"></div>
+    </div>
+    <button class="btn" style="width:100%;font-size:16px;padding:14px;" id="btn-reveal" onclick="hostReveal()">â© Reveal Results</button>
+  </div>
+</div>
+
+<!-- HOST REVEAL -->
+<div id="s-host-reveal" class="screen">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo" id="lg-hrev">JA</span><div><div id="ttl-hrev" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Results</div><div id="sub-hrev" style="font-size:10px;color:#334155;"></div></div></div>
+  <button class="btn btn-ghost" onclick="showLB()" style="font-size:12px;padding:7px 12px;">ðŸ“Š Leaderboard</button></div>
+  <div style="max-width:980px;margin:0 auto;padding:18px 14px;">
+    <h2 id="rev-title" style="font-size:20px;font-weight:900;margin-bottom:4px;"></h2>
+    <p id="rev-sub" style="color:#64748b;font-size:13px;margin-bottom:16px;"></p>
+    <div id="rev-cards" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px;margin-bottom:20px;"></div>
+    <span class="lbl">STANDINGS</span>
+    <div id="rev-standings" class="card" style="margin-bottom:16px;"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px;" class="g2">
+      <div class="card"><div style="font-size:11px;color:#4ade80;font-weight:700;margin-bottom:8px;letter-spacing:1px;">ðŸš€ TOP GAINERS</div><div id="top-g"></div></div>
+      <div class="card"><div style="font-size:11px;color:#ef4444;font-weight:700;margin-bottom:8px;letter-spacing:1px;">ðŸ“‰ TOP LOSERS</div><div id="top-l"></div></div>
+    </div>
+    <button class="btn" style="width:100%;font-size:16px;padding:14px;" id="btn-next" onclick="hostNext()"></button>
+  </div>
+</div>
+
+<!-- HOST FINAL -->
+<div id="s-host-final" class="screen">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo" id="lg-hfin">JA</span><div><div id="ttl-hfin" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Final Results</div><div id="sub-hfin" style="font-size:10px;color:#334155;"></div></div></div></div>
+  <div style="max-width:680px;margin:0 auto;padding:28px 16px;text-align:center;">
+    <div style="font-size:70px;margin-bottom:8px;">ðŸ†</div>
+    <div id="fin-lbl" style="font-size:12px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:6px;"></div>
+    <div id="fin-name" style="font-size:34px;font-weight:900;"></div>
+    <div id="fin-nw" style="font-size:28px;font-weight:900;color:#4ade80;margin-top:4px;"></div>
+    <div id="fin-list" style="margin:24px 0;text-align:left;"></div>
+    <button class="btn btn-ghost" style="width:100%;font-size:15px;padding:13px;color:#e2e8f0;" onclick="hostEndGame()">ðŸ  End Game</button>
+  </div>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="s-lb" class="screen">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo" id="lg-lb">JA</span><div><div id="ttl-lb" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Leaderboard</div></div></div>
+  <button class="btn btn-ghost" id="lb-back" style="font-size:12px;padding:7px 12px;">â† Back</button></div>
+  <div style="max-width:660px;margin:0 auto;padding:26px 16px;">
+    <h2 style="font-size:22px;font-weight:900;margin-bottom:18px;text-align:center;">ðŸ“Š Current Standings</h2>
+    <div id="lb-list"></div>
+  </div>
+</div>
+
+<!-- TEAM JOIN -->
+<div id="s-team-join" class="screen">
+  <div class="header" style="border-color:#60a5fa;"><div style="display:flex;align-items:center;"><button class="btn btn-ghost" onclick="go('home')" style="padding:5px 10px;font-size:12px;margin-right:8px;">â†</button><span class="logo" style="background:#60a5fa;">JA</span><div><div style="font-weight:800;font-size:13px;color:#60a5fa;letter-spacing:2px;text-transform:uppercase;">Join a Game</div></div></div></div>
+  <div style="max-width:420px;margin:0 auto;padding:44px 20px;">
+    <div style="font-size:48px;text-align:center;margin-bottom:22px;">ðŸ”—</div>
+    <div style="margin-bottom:18px;"><span class="lbl">GAME CODE</span>
+      <input id="j-code" class="inp" placeholder="e.g. XKQR2" maxlength="5" oninput="this.value=this.value.toUpperCase()" style="font-size:28px;text-align:center;letter-spacing:8px;font-weight:900;"/>
+    </div>
+    <div style="margin-bottom:18px;"><span class="lbl">TEAM NAME</span>
+      <input id="j-name" class="inp" placeholder="e.g. The Bull Market" style="font-size:16px;"/>
+    </div>
+    <div id="j-err" class="err"></div>
+    <button class="btn" style="width:100%;font-size:17px;padding:15px;background:#60a5fa;color:#0a0f1e;" id="btn-join" onclick="teamJoin()">Join Game â†’</button>
+  </div>
+</div>
+
+<!-- TEAM WAIT -->
+<div id="s-team-wait" class="screen">
+  <div class="header" id="hdr-tw"><div style="display:flex;align-items:center;"><span class="logo" id="lg-tw">JA</span><div><div id="ttl-tw" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Waiting...</div><div id="sub-tw" style="font-size:10px;color:#334155;"></div></div></div></div>
+  <div style="max-width:460px;margin:0 auto;padding:40px 18px;text-align:center;">
+    <div id="tw-emoji" style="font-size:60px;margin-bottom:12px;"></div>
+    <h2 id="tw-name" style="font-size:24px;font-weight:900;margin-bottom:6px;"></h2>
+    <div id="tw-code" style="font-size:13px;color:#64748b;margin-bottom:24px;"></div>
+    <div class="card" style="margin-bottom:14px;"><div style="font-size:28px;margin-bottom:6px;">â³</div>
+      <div id="tw-msg" style="font-size:15px;font-weight:700;color:#e2e8f0;margin-bottom:4px;"></div>
+      <div style="font-size:12px;color:#475569;">This page updates automatically</div>
+    </div>
+    <div class="card" style="text-align:left;margin-bottom:12px;"><span class="lbl">NET WORTH</span><div id="tw-nw" style="font-size:24px;font-weight:900;color:#4ade80;"></div></div>
+    <div class="card" style="text-align:left;"><span class="lbl">TEAMS IN GAME</span><div id="tw-teams"></div></div>
+  </div>
+</div>
+
+<!-- TEAM INVEST -->
+<div id="s-team-invest" class="screen">
+  <div class="header" id="hdr-ti"><div style="display:flex;align-items:center;"><span class="logo" id="lg-ti" style="font-size:18px;">ðŸ¦</span><div><div id="ttl-ti" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Your Turn</div><div id="sub-ti" style="font-size:10px;color:#334155;"></div></div></div>
+  <div style="display:flex;gap:14px;"><div style="text-align:right;"><div style="font-size:10px;color:#334155;">CASH</div><div id="ti-cash" style="font-size:16px;font-weight:900;"></div></div><div style="text-align:right;"><div style="font-size:10px;color:#334155;">NET WORTH</div><div id="ti-nw" style="font-size:16px;font-weight:900;color:#4ade80;"></div></div></div></div>
+  <div style="max-width:1080px;margin:0 auto;padding:14px 12px 130px;">
+    <div id="ti-news" style="border-radius:12px;padding:14px 18px;margin-bottom:12px;"></div>
+    <div id="ti-hold" style="display:none;border-radius:9px;padding:9px 13px;margin-bottom:10px;"></div>
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;flex-wrap:wrap;">
+      <span style="font-size:13px;font-weight:700;color:#e2e8f0;">Buy shares:</span>
+      <select id="ind-filter" class="sel" onchange="renderGrid()" style="color:#f1f5f9;background:#1e3a5f;"><option value="all">All Industries</option></select>
+      <span id="ti-cashlbl" style="font-size:12px;color:#475569;"></span>
+    </div>
+    <div id="sgrid" class="sgrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(188px,1fr));gap:8px;"></div>
+  </div>
+  <div class="bottom-bar">
+    <div><div style="font-size:11px;color:#475569;">Investing</div><div id="cost-disp" style="font-size:20px;font-weight:900;"></div><div id="rem-disp" style="font-size:10px;color:#475569;"></div></div>
+    <div style="display:flex;gap:8px;">
+      <button class="btn btn-ghost" onclick="teamSubmit(true)" style="font-size:12px;padding:9px 14px;">Skip</button>
+      <button class="btn" id="btn-sub" onclick="teamSubmit(false)" disabled style="font-size:14px;padding:10px 20px;">Submit âœ“</button>
+    </div>
+  </div>
+</div>
+
+<!-- TEAM SUBMITTED -->
+<div id="s-team-subm" class="screen">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo" id="lg-ts" style="font-size:18px;">ðŸ¦</span><div><div id="ttl-ts" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Submitted!</div><div style="font-size:10px;color:#334155;">Waiting for others...</div></div></div></div>
+  <div style="max-width:460px;margin:0 auto;padding:40px 18px;text-align:center;">
+    <div style="font-size:60px;margin-bottom:10px;">âœ…</div>
+    <h2 style="font-size:22px;font-weight:900;color:#4ade80;margin-bottom:8px;">Picks Submitted!</h2>
+    <p style="color:#64748b;margin-bottom:22px;">Waiting for other teams. Results appear automatically.</p>
+    <div class="card" style="text-align:left;margin-bottom:14px;"><span class="lbl">YOUR PICKS</span><div id="ts-picks"></div></div>
+    <div id="ts-wait" class="card" style="font-size:13px;color:#475569;"></div>
+  </div>
+</div>
+
+<!-- TEAM RESULTS -->
+<div id="s-team-res" class="screen">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo" id="lg-tr" style="font-size:18px;">ðŸ¦</span><div><div id="ttl-tr" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Results</div><div id="sub-tr" style="font-size:10px;color:#334155;"></div></div></div></div>
+  <div style="max-width:580px;margin:0 auto;padding:20px 14px;">
+    <div id="tr-pnl" style="border-radius:14px;padding:18px 20px;margin-bottom:16px;text-align:center;"></div>
+    <div id="tr-picks" class="card" style="margin-bottom:12px;"></div>
+    <div class="card"><span class="lbl">LEADERBOARD</span><div id="tr-lb"></div></div>
+    <p style="color:#334155;font-size:12px;text-align:center;margin-top:12px;">Waiting for host to start next round...</p>
+  </div>
+</div>
+
+<!-- TEAM FINAL -->
+<div id="s-team-fin" class="screen">
+  <div class="header"><div style="display:flex;align-items:center;"><span class="logo" id="lg-tf" style="font-size:18px;">ðŸ¦</span><div><div id="ttl-tf" style="font-weight:800;font-size:13px;color:#4ade80;letter-spacing:2px;text-transform:uppercase;">Game Over!</div><div id="sub-tf" style="font-size:10px;color:#334155;"></div></div></div></div>
+  <div style="max-width:580px;margin:0 auto;padding:26px 14px;text-align:center;">
+    <div id="tf-medal" style="font-size:68px;margin-bottom:8px;"></div>
+    <div id="tf-lbl" style="font-size:12px;font-weight:800;letter-spacing:3px;text-transform:uppercase;margin-bottom:5px;"></div>
+    <div id="tf-name" style="font-size:30px;font-weight:900;margin-bottom:5px;"></div>
+    <div id="tf-nw" style="font-size:26px;font-weight:900;color:#4ade80;"></div>
+    <div id="tf-gain" style="font-size:15px;margin-top:4px;margin-bottom:16px;"></div>
+    <div id="tf-rank" style="font-size:18px;color:#facc15;font-weight:800;margin-bottom:22px;"></div>
+    <div class="card" style="text-align:left;margin-bottom:18px;"><span class="lbl">FINAL STANDINGS</span><div id="tf-lb"></div></div>
+    <button class="btn btn-ghost" style="width:100%;font-size:15px;padding:13px;color:#e2e8f0;" onclick="teamLeave()">ðŸ  Return Home</button>
+  </div>
+</div>
+
+<script>
+firebase.initializeApp({
+  apiKey:"AIzaSyC7yD-T3xIc1m7U8BmUwfbDHw8hnctuUGM",
+  authDomain:"ja-stock.firebaseapp.com",
+  databaseURL:"https://ja-stock-default-rtdb.firebaseio.com",
+  projectId:"ja-stock",
+  storageBucket:"ja-stock.firebasestorage.app",
+  messagingSenderId:"367073344125",
+  appId:"1:367073344125:web:43cd2dae00b59558ac8f14"
+});
+const db = firebase.database();
+
+const SC=100000;
+const TC=["#4ade80","#fb923c","#60a5fa","#e879f9","#facc15","#f87171","#34d399","#a78bfa","#f472b6","#38bdf8"];
+const TE=["ðŸ¦","ðŸ¯","ðŸ¦Š","ðŸº","ðŸ¦…","ðŸ‰","ðŸ¦ˆ","ðŸ»","ðŸ¦‹","ðŸ¦„"];
+const MD=["ðŸ¥‡","ðŸ¥ˆ","ðŸ¥‰","4ï¸âƒ£","5ï¸âƒ£","6ï¸âƒ£","7ï¸âƒ£","8ï¸âƒ£","9ï¸âƒ£","ðŸ”Ÿ"];
+const fmt=n=>typeof n==="number"&&!isNaN(n)?"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}):"$0.00";
+const fmtS=n=>{if(typeof n!=="number"||isNaN(n))return"$0";if(n>=1e6)return"$"+(n/1e6).toFixed(2)+"M";if(n>=1e3)return"$"+(n/1e3).toFixed(1)+"K";return fmt(n);};
+const fmtP=n=>(n>=0?"+":"")+n+"%";
+const nwOf=t=>(t.cash||0)+Object.entries(t.portfolio||{}).reduce((s,[k,v])=>s+v.shares*((t.prices||{})[k]||0),0);
+const iP=()=>Object.fromEntries(Object.entries(STK).map(([k,v])=>[k,v.p]));
+const rc=()=>Math.random().toString(36).substring(2,7).toUpperCase();
+const $=id=>document.getElementById(id);
+const set=(id,v)=>{const e=$(id);if(e)e.innerHTML=v;};
+const setT=(id,v)=>{const e=$(id);if(e)e.textContent=v;};
+const setS=(id,k,v)=>{const e=$(id);if(e)e.style[k]=v;};
+
+const STK={
+  ALR:{n:"Alison Reeves, Inc.",i:"Consumer Products",p:119.21},
+  AMM:{n:"American Mobile",i:"Telecommunications",p:137.67},
+  BHG:{n:"Bicentennial Health Group",i:"Health Insurance",p:521.48},
+  CID:{n:"Cambridge Industries",i:"Clothing & Accessories",p:102.93},
+  CONI:{n:"Conroy International",i:"Tourism (Hospitality)",p:201.35},
+  DON:{n:"Dancers Only",i:"Education",p:12.92},
+  DHS:{n:"Donut House",i:"Food/Drink",p:103.40},
+  ESI:{n:"Erie Services, Inc.",i:"Consulting",p:71.59},
+  FLEX:{n:"Flex Work",i:"Real Estate (Commercial)",p:6.05},
+  GSW:{n:"Georgina Swann",i:"Consumer Products",p:158.30},
+  GENG:{n:"Gust Energy",i:"Energy (Wind)",p:58.06},
+  HERB:{n:"Herbert, Inc.",i:"Shipping",p:62.26},
+  IDV:{n:"Individua",i:"Tech (Software)",p:142.22},
+  LKBX:{n:"Lock Box, Inc.",i:"Data Management",p:68.11},
+  MCMS:{n:"Millennium Communities",i:"Home Construction",p:50.05},
+  NSG:{n:"Nichols Sporting Goods",i:"Athletic Equipment",p:8.98},
+  PNA:{n:"Parana",i:"E-Commerce",p:91.26},
+  PE:{n:"Picture Earth",i:"Tech",p:3.22},
+  RVR:{n:"Rivver",i:"Entertainment",p:390.77},
+  SFLY:{n:"Safely",i:"Home/Business Security",p:7.44},
+  SZA:{n:"Swarz Aluminum",i:"Materials",p:75.64},
+  TRS:{n:"Three Rivers Steel",i:"Steel",p:19.16},
+  VCOF:{n:"Vigil Coffee",i:"Food/Drink",p:97.93},
+  YSHP:{n:"Your Shop",i:"E-Commerce",p:55.73}
+};
+
+const GAMES_NORMAL=[
+  {id:1,t:"Normal 1",s:"Digital Frontier",c:"#4ade80",r:[
+    {h:"TECH EARNINGS",t:"Big Tech Reports Blowout Quarter",st:"Every major technology company beats earnings by a wide margin. Software subscriptions are up 40%. Remote work tools see record sign-ups. Investors pour money into anything tech-related.",hints:["Software and tech companies are the obvious play","Data and security ride the wave","Old-economy companies get left out"],ch:{IDV:24,PE:20,LKBX:16,YSHP:14,PNA:12,SFLY:10,AMM:8,FLEX:10,ESI:9,RVR:7,GENG:5,BHG:3,HERB:4,ALR:2,MCMS:3,TRS:-6,SZA:-8,CID:-5,GSW:-4,NSG:-3,DHS:-4,VCOF:-2,CONI:-3,DON:-1}},
+    {h:"CONSUMER REPORT",t:"Americans Are Eating Out Less â€” Cooking More",st:"A new study shows restaurant visits down 22% as people opt for groceries and home cooking. Grocery delivery apps hit record downloads. Fast food chains issue profit warnings.",hints:["Grocery and consumer staples benefit","Food delivery and e-commerce gain","Restaurants and hospitality suffer"],ch:{ALR:28,YSHP:20,PNA:16,DHS:-22,VCOF:-18,CONI:-12,ESI:8,HERB:14,LKBX:6,BHG:5,IDV:4,PE:3,SFLY:4,AMM:3,FLEX:2,GSW:-6,CID:-4,NSG:-3,RVR:-5,TRS:2,SZA:1,MCMS:2,GENG:1,DON:-2}},
+    {h:"HOUSING DATA",t:"Mortgage Rates Hit 3% â€” Homebuying Frenzy Begins",st:"The Fed slashes rates to historic lows. Mortgage applications triple overnight. Hardware stores sell out nationwide. Suburbs see bidding wars on every listing.",hints:["Home construction is the direct winner","Materials suppliers can't keep up with demand","Urban commercial real estate softens"],ch:{MCMS:32,TRS:22,SZA:20,FLEX:-15,SFLY:18,ESI:12,GENG:6,HERB:8,LKBX:8,ALR:6,BHG:4,DHS:5,VCOF:4,AMM:3,DON:2,NSG:5,IDV:3,PE:2,PNA:4,YSHP:3,CONI:-10,RVR:-6,GSW:-4,CID:-5}},
+    {h:"VIRAL MOMENT",t:"A Dance Trend Takes Over â€” DON Stock Soars",st:"A viral social media dance challenge involving a routine from Dancers Only explodes globally. Their enrollment app crashes from traffic. Sporting goods and athleisure brands ride the coattails.",hints:["Education and arts companies spike directly","Athletic brands benefit from the fitness trend","Nothing else really moves â€” this one's obvious"],ch:{DON:45,NSG:22,CID:16,GSW:12,RVR:10,PNA:8,YSHP:7,ALR:5,VCOF:4,DHS:3,AMM:2,BHG:2,FLEX:1,MCMS:1,IDV:3,PE:2,LKBX:1,SFLY:1,ESI:1,HERB:-3,TRS:-5,SZA:-4,GENG:-2,CONI:-4}},
+    {h:"GLOBAL ALERT",t:"Bird Flu Outbreak Prompts Travel Bans",st:"A new bird flu strain spreads across Southeast Asia. Six countries close their borders. Airlines cancel thousands of flights. People stock up on home essentials and health products.",hints:["Health insurance and home goods surge","Travel and hospitality get crushed","Home entertainment and e-commerce spike"],ch:{BHG:30,ALR:22,SFLY:18,LKBX:14,DHS:12,VCOF:10,RVR:16,YSHP:14,PNA:10,IDV:8,PE:6,AMM:4,HERB:5,ESI:6,GENG:3,CONI:-30,HERB:5,TRS:-5,SZA:-4,CID:-8,GSW:-6,NSG:-5,FLEX:-4,MCMS:-3,DON:-2}},
+    {h:"POLICY SHIFT",t:"FTC Breaks Up Two Big Tech Mergers",st:"The Federal Trade Commission blocks two massive tech acquisitions and launches antitrust investigations. Smaller independent companies cheer. The market broadly dips on regulatory uncertainty.",hints:["Smaller independent tech companies may benefit","Large-cap tech takes a hit","Defensive industries hold steady"],ch:{PE:20,SFLY:16,LKBX:14,ESI:18,BHG:10,ALR:8,HERB:6,GENG:5,TRS:4,SZA:3,DHS:4,VCOF:3,MCMS:3,IDV:-14,AMM:-12,YSHP:-8,PNA:-6,RVR:-10,FLEX:-5,CID:-4,GSW:-3,NSG:-2,DON:-1,CONI:-3}},
+    {h:"WEATHER EVENT",t:"Historic Drought Grips the Midwest",st:"The worst drought in 50 years devastates Midwest crops. Food prices surge. Energy companies pivot to emergency water-cooling solutions. Consulting firms land massive government contracts.",hints:["Food companies with pricing power hold up","Energy and consulting get emergency contracts","Import-dependent consumer goods face cost pressure"],ch:{ALR:20,DHS:15,VCOF:12,ESI:28,GENG:18,HERB:10,BHG:8,LKBX:6,SFLY:5,AMM:4,IDV:3,PE:3,TRS:6,SZA:5,MCMS:4,PNA:-8,YSHP:-6,CID:-10,GSW:-8,NSG:-6,RVR:-5,CONI:-4,FLEX:-3,DON:-2}},
+    {h:"MARKET MOVER",t:"Pension Funds Rotate Into Value Stocks",st:"The three largest pension funds in America announce a massive shift from growth to value stocks. Companies with real assets and steady dividends surge. Tech darlings take a beating.",hints:["Industrial and materials companies are value plays","Healthcare and staples benefit from dividend focus","High-growth tech gets sold off"],ch:{TRS:28,SZA:24,MCMS:20,HERB:18,BHG:16,ALR:14,DHS:12,VCOF:10,GENG:8,ESI:7,FLEX:6,SFLY:5,AMM:4,CONI:5,NSG:4,IDV:-18,PE:-20,RVR:-15,YSHP:-12,PNA:-10,LKBX:-8,FLEX:6,CID:-6,GSW:-4,DON:-3}},
+    {h:"BREAKING NEWS",t:"Major Data Breach Hits Three Banks",st:"Three of the largest U.S. banks suffer a coordinated cyberattack. Account data for 40 million customers is compromised. Congress summons tech companies to testify. Cybersecurity spending triples overnight.",hints:["Cybersecurity and data companies surge immediately","Consulting firms gain from remediation contracts","Financial-adjacent services take a hit on trust"],ch:{LKBX:38,SFLY:32,ESI:26,IDV:18,PE:14,BHG:8,AMM:5,HERB:4,GENG:3,ALR:3,DHS:2,VCOF:2,TRS:-5,SZA:-4,MCMS:-3,CID:-7,GSW:-5,NSG:-4,RVR:-6,PNA:-5,YSHP:-4,FLEX:-3,CONI:-5,DON:-2}},
+    {h:"FINAL ROUND",t:"Year-End Rally â€” Everything Goes Up",st:"A surprise interest rate cut in December triggers a massive year-end rally. Almost every stock surges. The question is which ones surge the most. Risk-on is back in full force.",hints:["High-beta tech and entertainment lead the rally","Consumer and industrial stocks have a strong showing","Defensive stocks lag behind the excitement"],ch:{PE:32,IDV:28,RVR:26,YSHP:22,PNA:20,FLEX:18,DON:15,GENG:14,LKBX:12,SFLY:10,AMM:9,NSG:8,CID:8,GSW:7,ESI:8,BHG:5,HERB:6,VCOF:5,DHS:5,TRS:6,SZA:6,ALR:4,MCMS:5,CONI:10}}
+  ]},
+  {id:2,t:"Normal 2",s:"Industrial America",c:"#fb923c",r:[
+    {h:"JOBS REPORT",t:"Manufacturing Jobs Hit 30-Year High",st:"A massive reshoring initiative brings factory jobs back to the U.S. Steel mills, aluminum plants, and home builders are hiring at record pace. Unions negotiate historic contracts.",hints:["Steel, aluminum, and construction are direct beneficiaries","Consulting firms land workforce training contracts","Import-heavy retailers face higher domestic costs"],ch:{TRS:30,SZA:26,MCMS:22,ESI:18,HERB:12,FLEX:10,GENG:6,LKBX:4,BHG:3,ALR:3,AMM:2,SFLY:2,PE:2,IDV:3,DON:1,CID:-10,PNA:-8,YSHP:-7,GSW:-6,NSG:-5,RVR:-4,DHS:-3,VCOF:-2,CONI:-3}},
+    {h:"ENERGY CRISIS",t:"Natural Gas Shortage Sends Heating Bills Soaring",st:"A cold snap combined with supply disruptions sends natural gas prices up 300%. Households face $800 monthly heating bills. Wind energy companies sign emergency contracts with 12 states.",hints:["Renewable energy companies are the obvious play","Home security and efficiency companies benefit","Consumer discretionary spending collapses"],ch:{GENG:40,SFLY:20,LKBX:14,ESI:16,BHG:8,ALR:6,DHS:-15,VCOF:-12,CONI:-18,RVR:-10,GSW:-8,CID:-10,NSG:-8,PNA:-6,YSHP:-5,HERB:10,TRS:8,SZA:6,MCMS:4,IDV:3,PE:3,AMM:2,FLEX:2,DON:-3}},
+    {h:"TRADE WAR",t:"U.S. Slaps 40% Tariffs on Chinese Goods",st:"The administration announces sweeping tariffs on all Chinese imports effective immediately. Supply chains scramble. Domestic manufacturers cheer. Retailers that source overseas warn of price hikes.",hints:["Domestic manufacturers are the clear winners","Import-dependent retailers face a crisis","Shipping companies face rerouting chaos"],ch:{TRS:28,SZA:24,MCMS:18,GENG:8,ESI:14,HERB:-10,SFLY:8,LKBX:6,IDV:4,PE:4,BHG:4,ALR:3,AMM:2,FLEX:6,DON:1,CID:-22,GSW:-18,NSG:-14,PNA:-12,YSHP:-10,DHS:-8,VCOF:-6,CONI:-8,RVR:-5}},
+    {h:"CONSUMER BUZZ",t:"\"Loud Luxury\" Trend Drives Spending on Premium Goods",st:"A cultural shift toward conspicuous consumption sends luxury and premium consumer goods to all-time highs. High-end coffee shops have two-hour lines. Designer athletic wear sells out globally.",hints:["Premium consumer brands are the direct play","Athletic and coffee companies benefit","Budget and discount brands lose share"],ch:{GSW:32,CID:28,VCOF:24,NSG:18,ALR:14,DHS:10,DON:8,CONI:12,RVR:6,PNA:8,YSHP:7,AMM:4,IDV:3,PE:2,FLEX:3,BHG:2,ESI:2,LKBX:1,TRS:-5,SZA:-4,HERB:-3,MCMS:-2,GENG:-1,SFLY:1}},
+    {h:"INFRASTRUCTURE",t:"$2 Trillion Infrastructure Bill Signed Into Law",st:"Congress passes the largest infrastructure bill in U.S. history. Bridges, tunnels, roads, and power grids get rebuilt. Steel and aluminum demand goes off the charts.",hints:["Steel, aluminum, and construction dominate","Consulting and engineering firms win contracts","Consumer companies see no direct impact"],ch:{TRS:35,SZA:30,MCMS:28,GENG:22,ESI:20,HERB:14,FLEX:16,SFLY:8,LKBX:6,BHG:3,ALR:2,AMM:2,IDV:4,PE:3,DON:1,CID:-5,GSW:-4,NSG:-3,DHS:-4,VCOF:-3,CONI:-5,RVR:-4,PNA:-2,YSHP:-2}},
+    {h:"VIRAL STORY",t:"A Famous Chef Says Donut House Is \"The Best in America\"",st:"A world-famous chef posts a 10-minute video declaring Donut House the greatest food chain in America. The video gets 200 million views in 48 hours. Lines wrap around every location. Vigil Coffee rides the coattails.",hints:["Food and beverage companies get the direct boost","Consumer brands associated with the trend benefit","Unrelated companies see no impact"],ch:{DHS:45,VCOF:28,ALR:18,GSW:12,CONI:10,RVR:8,NSG:5,CID:6,PNA:7,YSHP:6,AMM:3,DON:4,BHG:2,HERB:3,FLEX:2,IDV:1,PE:1,SFLY:1,LKBX:1,TRS:-3,SZA:-2,MCMS:-1,GENG:-1,ESI:1}},
+    {h:"HEALTH CRISIS",t:"Obesity Drug Breakthrough Changes Healthcare Forever",st:"A new once-weekly pill eliminates obesity in clinical trials. Health insurance companies scramble to cover it. Fast food companies panic. Athletic and wellness brands see a surge in new customers.",hints:["Healthcare companies benefit from mass prescriptions","Athletic and wellness brands gain new customers","Fast food faces a serious long-term threat"],ch:{BHG:32,NSG:25,DON:20,ALR:16,SFLY:10,ESI:12,VCOF:8,LKBX:6,IDV:5,PE:4,AMM:3,GENG:2,HERB:2,FLEX:3,MCMS:2,DHS:-28,CID:-10,GSW:-6,CONI:-8,RVR:-4,TRS:-3,SZA:-2,PNA:-4,YSHP:-3}},
+    {h:"MARKET SHOCK",t:"Flash Crash Wipes Out 8% in 12 Minutes",st:"A rogue trading algorithm triggers a flash crash. Markets lose 8% before circuit breakers kick in. Defensive stocks barely move. High-growth names get obliterated. Bargain hunters wait on the sidelines.",hints:["Defensive stocks are the only safe harbor","High-growth and speculative stocks crash hardest","Security and data companies recover fast"],ch:{BHG:10,ALR:8,LKBX:6,SFLY:5,ESI:5,HERB:4,TRS:3,SZA:3,GENG:2,DHS:2,VCOF:2,AMM:1,IDV:-22,PE:-25,RVR:-20,FLEX:-18,YSHP:-16,PNA:-14,CID:-15,GSW:-12,NSG:-10,DON:-8,CONI:-12,MCMS:-8}},
+    {h:"GLOBAL BOOM",t:"Emerging Markets Open Up to U.S. Exports",st:"Brazil, India, and Nigeria sign historic trade agreements with the U.S. Shipping volume surges 60%. American manufacturers get preferential access to 2 billion new consumers.",hints:["Shipping companies see a massive volume spike","Manufacturers with export potential benefit","Digital companies already global see modest gains"],ch:{HERB:35,TRS:28,SZA:24,MCMS:18,ESI:16,GENG:8,FLEX:10,ALR:10,DHS:8,VCOF:7,NSG:6,CID:8,GSW:6,AMM:4,IDV:5,PE:4,PNA:10,YSHP:8,LKBX:3,SFLY:2,BHG:2,DON:3,RVR:4,CONI:5}},
+    {h:"FINAL ROUND",t:"Buyout Frenzy â€” Every Sector Gets an Offer",st:"Private equity firms announce takeover bids for companies in steel, retail, healthcare, and tech. Any company seen as undervalued gets a premium bid. The market can't decide which sector wins.",hints:["Industrial and value stocks get the biggest premiums","Healthcare and data are acquisition targets","Wildcard round â€” bold picks can pay off big"],ch:{TRS:30,SZA:26,BHG:24,LKBX:22,ESI:20,MCMS:18,FLEX:16,HERB:14,GENG:12,SFLY:10,IDV:15,PE:12,RVR:10,PNA:8,YSHP:8,ALR:6,DHS:6,VCOF:5,NSG:5,AMM:4,CID:4,GSW:4,DON:4,CONI:5}}
+  ]},
+  {id:3,t:"Normal 3",s:"Boom & Bust",c:"#60a5fa",r:[
+    {h:"IPO FEVER",t:"Three Mega-IPOs Hit the Market in One Week",st:"Three blockbuster companies go public simultaneously, flooding the market with new investment choices. Rivver's new competitor raises $40 billion. Data management startup surges 200% on day one. The excitement is contagious.",hints:["Entertainment and streaming feel competitive pressure","Data and tech companies ride the IPO excitement","Conservative industries sit this one out"],ch:{IDV:22,PE:20,LKBX:18,SFLY:14,FLEX:12,YSHP:10,PNA:8,AMM:6,ESI:7,GENG:5,BHG:4,RVR:-12,ALR:2,HERB:3,TRS:1,SZA:1,MCMS:2,DHS:1,VCOF:1,NSG:1,CID:1,GSW:1,DON:1,CONI:-3}},
+    {h:"SCANDAL",t:"Shipping Giant Herbert Inc. Caught Dumping Waste",st:"An undercover investigation reveals Herbert Inc. has been illegally dumping chemical waste for years. Their CEO resigns. Congressional hearings begin. Competing shipping companies see a flood of new contracts.",hints:["Competing shipping companies directly benefit","Environmental consulting firms land cleanup contracts","Investors flee Herbert and related exposed companies"],ch:{HERB:-35,ESI:25,GENG:18,LKBX:12,SFLY:10,BHG:6,PE:5,IDV:4,AMM:3,FLEX:4,MCMS:3,TRS:2,SZA:2,ALR:2,DHS:1,VCOF:1,DON:1,NSG:1,CID:1,GSW:1,RVR:2,PNA:2,YSHP:2,CONI:1}},
+    {h:"SOCIAL TREND",t:"\"Dopamine Detox\" Movement Goes Mainstream",st:"Millions of Americans ditch their smartphones for 30 days. Screen time apps report historic lows. People flood gyms, dance studios, coffee shops, and parks. Physical experiences boom.",hints:["Physical experience companies surge","Athletic and arts businesses directly benefit","Digital and streaming companies take a hit"],ch:{NSG:30,DON:26,CONI:22,VCOF:18,DHS:15,GSW:12,ALR:10,SFLY:6,ESI:5,BHG:4,HERB:4,TRS:3,SZA:2,MCMS:3,FLEX:3,IDV:-18,PE:-15,RVR:-20,AMM:-14,YSHP:-10,PNA:-8,LKBX:-6,GENG:-2,DON:26}},
+    {h:"RATE SHOCK",t:"Fed Raises Rates by 1.5% in Emergency Meeting",st:"Runaway inflation forces the Fed into an emergency rate hike â€” the largest in 40 years. Borrowing costs explode. Real estate markets freeze overnight. Growth stocks get annihilated.",hints:["Defensive and cash-heavy companies hold value","Real estate and highly leveraged companies crash","Consumer staples and insurance are safe havens"],ch:{BHG:18,ALR:14,LKBX:12,SFLY:10,ESI:8,DHS:6,VCOF:5,HERB:4,GENG:4,TRS:3,SZA:3,AMM:3,IDV:-20,PE:-22,RVR:-18,FLEX:-28,MCMS:-25,YSHP:-15,PNA:-12,CID:-14,GSW:-10,NSG:-8,DON:-6,CONI:-15}},
+    {h:"CONSUMER WIN",t:"Government Sends Every American a $2,000 Check",st:"Congress passes an emergency stimulus package. Every adult American receives a $2,000 direct payment. Spending explodes within 48 hours. Retailers, restaurants, and entertainment venues can't keep up.",hints:["Consumer-facing companies get an immediate sales surge","Entertainment and dining see the biggest spikes","Industrial companies don't feel much of this"],ch:{DHS:28,VCOF:24,CONI:22,NSG:18,GSW:16,CID:14,ALR:12,RVR:10,DON:8,PNA:12,YSHP:10,AMM:6,IDV:5,PE:5,FLEX:4,MCMS:3,ESI:3,LKBX:2,BHG:2,SFLY:2,HERB:3,TRS:1,SZA:1,GENG:1}},
+    {h:"SCANDAL 2",t:"Individua CEO Arrested for Fraud",st:"The CEO of Individua is arrested on securities fraud charges. The stock halts trading before crashing 40% at open. Competitors scramble to poach their enterprise clients. Trust in tech is shaken.",hints:["Individua crashes hard and fast","Competing tech companies pick up displaced clients","Security and legal consulting firms benefit from fallout"],ch:{IDV:-40,PE:18,LKBX:22,SFLY:20,ESI:25,BHG:8,AMM:6,FLEX:5,GENG:4,HERB:3,TRS:3,SZA:2,ALR:2,DHS:1,VCOF:1,DON:1,NSG:1,CID:1,GSW:1,RVR:4,PNA:5,YSHP:4,CONI:1,MCMS:2}},
+    {h:"CLIMATE PUSH",t:"40 Fortune 500 Companies Pledge Net Zero by 2030",st:"A coalition of Fortune 500 companies pledge aggressive emissions cuts, naming specific suppliers. Wind energy, data management, and green consulting firms appear on the approved vendor list.",hints:["Green energy and sustainability companies win contracts","Data and consulting firms on the approved list benefit","Carbon-heavy industrial companies face compliance costs"],ch:{GENG:36,ESI:28,LKBX:20,SFLY:14,IDV:12,PE:10,BHG:6,AMM:4,FLEX:8,HERB:5,MCMS:4,ALR:3,DHS:2,VCOF:2,DON:2,NSG:1,TRS:-12,SZA:-10,CID:-6,GSW:-4,CONI:-5,RVR:-3,PNA:4,YSHP:3}},
+    {h:"REBOUND",t:"Markets Surge After Three Weeks of Selling",st:"After a brutal three-week selloff, bargain hunters rush back in. The stocks that fell the hardest bounce the most. A single positive economic report is all it takes to ignite the rally.",hints:["Previously hammered stocks recover fastest","This is a broad rally but high-risk names lead","Defensive stocks that held up actually lag the rebound"],ch:{IDV:26,FLEX:30,MCMS:24,RVR:22,CID:20,CONI:18,DON:12,PE:15,YSHP:14,PNA:12,GSW:10,NSG:10,HERB:8,TRS:8,SZA:8,BHG:2,ALR:2,LKBX:2,SFLY:2,ESI:3,AMM:4,GENG:5,DHS:3,VCOF:3}},
+    {h:"WILDCARD",t:"A UFO Sighting Goes Viral â€” Stock Market Reacts Wildly",st:"The Pentagon confirms a verified UFO encounter on live television. Markets go haywire. Satellite and space tech companies explode. Defense consulting firms get emergency contracts. Everyone else has no idea what to do.",hints:["Satellite and space-adjacent tech companies obviously spike","Consulting and security firms benefit from government contracts","This is chaos â€” most companies just freeze"],ch:{PE:50,IDV:22,ESI:30,LKBX:18,SFLY:16,GENG:12,AMM:8,TRS:6,SZA:5,HERB:4,BHG:5,FLEX:4,MCMS:3,ALR:2,DHS:1,VCOF:1,RVR:8,DON:1,NSG:1,CID:1,GSW:1,PNA:3,YSHP:2,CONI:-5}},
+    {h:"FINAL ROUND",t:"Legendary Investor Publishes Annual Letter",st:"The world's most famous investor publishes his annual letter naming his top picks. He names Vigil Coffee as 'criminally undervalued,' praises home construction, and warns against overpriced tech.",hints:["The stocks he praised directly get a boost","The stocks he warned against drop on panic selling","Mid-tier companies not mentioned can go either way"],ch:{VCOF:35,MCMS:28,DHS:22,TRS:16,SZA:14,HERB:12,ALR:10,BHG:8,ESI:7,GENG:6,NSG:6,CONI:8,FLEX:10,SFLY:4,LKBX:3,IDV:-15,PE:-12,RVR:-10,YSHP:-8,PNA:-6,AMM:-4,CID:-5,GSW:-3,DON:-2}}
+  ]},
+  {id:4,t:"Normal 4",s:"The Chaos Year",c:"#e879f9",r:[
+    {h:"DAY ONE",t:"New President Announces \"America First\" Economic Plan",st:"On inauguration day, the new President announces sweeping economic nationalism. Domestic producers get massive tax breaks. Imports face new fees. The market scrambles to reprice everything.",hints:["Domestic industrial companies benefit immediately","Import-dependent companies face headwinds","Energy independence push helps renewables"],ch:{TRS:26,SZA:22,MCMS:18,GENG:16,FLEX:12,ESI:14,HERB:-8,ALR:8,DHS:6,VCOF:5,SFLY:6,LKBX:4,BHG:3,AMM:2,IDV:3,PE:3,DON:1,CID:-14,GSW:-10,NSG:-8,PNA:-10,YSHP:-8,RVR:-4,CONI:-6}},
+    {h:"VIRAL MOMENT",t:"\"Glacier Coffee\" TikTok Trend Makes Vigil Coffee Famous",st:"A TikTok creator's video of a Vigil Coffee glacier-themed drink gets 500 million views in three days. Every location sells out by noon. Corporate announces an emergency capacity expansion.",hints:["Vigil Coffee is the obvious play here","Food and consumer brands ride the social halo","Unrelated companies see minimal impact"],ch:{VCOF:50,DHS:20,ALR:14,CONI:12,GSW:8,NSG:6,RVR:5,PNA:8,YSHP:6,CID:4,DON:3,AMM:2,IDV:2,PE:1,SFLY:1,LKBX:1,ESI:1,BHG:1,HERB:1,FLEX:1,MCMS:1,TRS:-2,SZA:-1,GENG:-1}},
+    {h:"TECH MELTDOWN",t:"AI Bubble Bursts â€” Investors Panic Sell",st:"A bombshell report reveals most AI companies have zero revenue. The Nasdaq drops 15% in one session. Every tech stock gets sold indiscriminately. Investors flee to physical assets and defensive stocks.",hints:["Tech stocks get sold regardless of quality","Physical and industrial companies become safe havens","Defensive healthcare and consumer staples hold"],ch:{IDV:-30,PE:-28,LKBX:-22,SFLY:-18,AMM:-15,YSHP:-12,PNA:-10,FLEX:-14,RVR:-12,IDV:-30,TRS:18,SZA:16,MCMS:14,HERB:12,GENG:10,BHG:14,ALR:12,DHS:8,VCOF:7,ESI:8,NSG:6,CID:5,GSW:5,CONI:4,DON:4}},
+    {h:"REBOUND",t:"Bargain Hunters Pour Back Into Tech",st:"Two weeks after the AI crash, institutional investors announce they're buying the dip aggressively. Tech stocks bounce hard. The companies with real revenue recover the fastest.",hints:["Beaten-down tech rebounds sharply","The higher the crash, the bigger the bounce here","Industrial stocks that surged give back some gains"],ch:{IDV:28,PE:25,LKBX:20,SFLY:16,AMM:12,YSHP:14,PNA:12,FLEX:10,RVR:14,ESI:8,BHG:4,GENG:4,ALR:2,DHS:2,VCOF:2,TRS:-8,SZA:-6,MCMS:-5,HERB:-4,CID:5,GSW:4,NSG:3,DON:3,CONI:2}},
+    {h:"WEATHER CHAOS",t:"Three Hurricanes Hit the Gulf Coast in One Month",st:"An unprecedented hurricane season causes $400 billion in damage. Emergency response spending goes off the charts. Home rebuilding starts immediately. Security and satellite systems are critical infrastructure.",hints:["Security, construction, and consulting companies surge","Satellite and data companies get emergency contracts","Tourism and hospitality along the coast get crushed"],ch:{SFLY:30,MCMS:28,ESI:26,TRS:18,SZA:16,PE:14,LKBX:12,GENG:10,HERB:8,BHG:6,ALR:5,IDV:5,AMM:3,FLEX:8,DON:2,CONI:-25,RVR:-10,DHS:-5,VCOF:-4,GSW:-4,CID:-5,NSG:-3,PNA:-3,YSHP:-3}},
+    {h:"CULTURAL SHIFT",t:"Gen Z Declares \"Experiences Over Things\" â€” Permanently",st:"A landmark survey reveals Gen Z is spending 3x more on experiences than physical goods compared to prior generations. Travel, food, and entertainment boom. Physical retail collapses.",hints:["Experiences companies â€” travel, food, entertainment â€” surge","Physical goods retailers face a generational headwind","Digital experiences and e-commerce hold steady"],ch:{CONI:32,RVR:26,DON:22,VCOF:18,DHS:16,NSG:12,ESI:8,BHG:4,AMM:3,IDV:6,PE:5,GENG:3,FLEX:2,LKBX:2,SFLY:2,HERB:2,GSW:-18,CID:-15,ALR:-8,MCMS:-4,TRS:-5,SZA:-4,PNA:8,YSHP:6}},
+    {h:"GOVERNMENT CONTRACT",t:"Pentagon Awards $10B Smart Infrastructure Contract",st:"The Department of Defense announces a $10 billion smart infrastructure contract focused on security monitoring, satellite surveillance, and data management for military bases nationwide.",hints:["Data, security, and satellite companies are direct winners","Consulting firms involved in government work benefit","Consumer companies are completely irrelevant here"],ch:{LKBX:36,PE:32,SFLY:28,ESI:24,IDV:18,GENG:10,AMM:8,TRS:5,SZA:4,BHG:4,HERB:3,FLEX:4,MCMS:3,ALR:2,DON:1,RVR:2,DHS:1,VCOF:1,NSG:1,CID:-4,GSW:-3,PNA:-2,YSHP:-2,CONI:-3}},
+    {h:"HEALTH BOOM",t:"Americans Get Serious About Fitness â€” Gyms Can't Keep Up",st:"New CDC data shows gym membership at an all-time high. Athletic wear sells out nationwide. Dance studios and performance schools triple their enrollment. Health insurance demand rises as people get more checkups.",hints:["Athletic, performance, and health companies surge together","Consumer brands associated with wellness benefit","Sedentary entertainment faces some pressure"],ch:{NSG:28,DON:25,BHG:20,GSW:16,CID:14,ALR:12,VCOF:8,DHS:6,ESI:6,SFLY:5,FLEX:4,AMM:3,MCMS:3,IDV:3,PE:2,RVR:-10,LKBX:2,GENG:2,TRS:2,SZA:2,PNA:4,YSHP:4,HERB:2,CONI:6}},
+    {h:"MARKET SHOCK",t:"Two Countries Go to War â€” Oil Prices Skyrocket",st:"A conflict breaks out between two major oil-producing nations. Oil surges to $180/barrel. Every energy-intensive industry faces a cost crisis. Renewables become economically essential overnight.",hints:["Renewable energy becomes urgently necessary","Shipping and manufacturing face cost explosions","Consumer companies with thin margins get squeezed"],ch:{GENG:40,ESI:16,LKBX:12,PE:10,SFLY:8,BHG:6,IDV:5,ALR:4,DHS:-16,VCOF:-12,CONI:-18,HERB:-20,TRS:-15,SZA:-12,MCMS:-8,CID:-10,GSW:-8,NSG:-6,RVR:-8,PNA:-6,YSHP:-5,AMM:-4,FLEX:-6,DON:-4}},
+    {h:"FINAL ROUND",t:"The Last Trade â€” Market Closes on Uncertainty",st:"The final trading session of the year ends in a split market. Half the analysts say recession. Half say boom. The stocks that have real earnings hold. The ones built on hype crash. Make your final call.",hints:["Profitable companies with real earnings hold value","Speculative and hype-driven stocks face a reckoning","Industrial and healthcare are the defensive final plays"],ch:{BHG:20,ESI:18,TRS:16,SZA:14,MCMS:12,ALR:10,HERB:10,GENG:10,DHS:8,VCOF:8,LKBX:8,SFLY:6,AMM:5,FLEX:8,NSG:5,IDV:-12,PE:-10,RVR:-14,YSHP:-10,PNA:-8,CID:-8,GSW:-6,DON:-4,CONI:-6}}
+  ]}
+];
+
+const GAMES_HARD=[
+  {id:5,t:"Hard 1",s:"Mixed Signals",c:"#f59e0b",r:[
+    {h:"ECONOMIC DATA",t:"GDP Grows 4.2% But Unemployment Also Rises",st:"An unusual combination of strong GDP growth alongside rising unemployment baffles economists. The growth is concentrated in capital-intensive industries. Workers are being replaced by machines faster than new jobs are created. Consumer confidence falls despite strong corporate profits.",hints:["Capital-intensive industries may have benefited from automation","Consumer spending could go either way â€” strong profits vs. weak confidence","Think carefully: who gains when machines replace workers?"],ch:{IDV:20,PE:18,LKBX:14,ESI:12,FLEX:10,GENG:8,TRS:6,SZA:6,MCMS:4,HERB:5,SFLY:6,BHG:-5,ALR:-8,DHS:-12,VCOF:-10,CONI:-14,NSG:-8,CID:-10,GSW:-6,RVR:-5,AMM:-4,DON:-6,PNA:-4,YSHP:-5}},
+    {h:"WEATHER REPORT",t:"Early Spring Arrives Six Weeks Early Across the Northeast",st:"Meteorologists confirm the warmest February on record in the Northeast. Ski resorts close early. People are outside earlier than usual. Retail spending shifts. HVAC companies see unusual patterns. The full economic effect won't be clear for weeks.",hints:["Think about what people do when it's warm early","Some industries benefit from outdoor activity, others suffer","Energy usage shifts when temperatures change unexpectedly"],ch:{NSG:18,DON:14,CONI:12,VCOF:10,DHS:8,GSW:8,GENG:-15,SFLY:-5,ALR:6,CID:6,RVR:5,HERB:3,PNA:4,YSHP:5,AMM:2,ESI:2,FLEX:1,IDV:1,PE:1,LKBX:1,BHG:-3,TRS:-4,SZA:-3,MCMS:-2}},
+    {h:"CORPORATE NEWS",t:"Three Major Companies Announce Share Buybacks on the Same Day",st:"Individua, Rivver, and Lock Box each announce massive share buyback programs totaling $80 billion combined. This signals executives believe their own stock is undervalued â€” or that they have no better use for their cash. Analysts are divided on whether this is bullish or a sign of stagnation.",hints:["Buyback announcements typically boost the announcing company's stock","But a buyback can also signal a company has run out of growth ideas","The broader market impact depends on whether you see this as confidence or desperation"],ch:{IDV:22,RVR:18,LKBX:16,PE:8,SFLY:6,YSHP:5,PNA:4,AMM:3,ESI:3,FLEX:3,GENG:2,BHG:2,ALR:1,DHS:1,VCOF:1,TRS:-3,SZA:-2,MCMS:-2,HERB:-2,CID:-3,GSW:-2,NSG:-2,DON:-1,CONI:-3}},
+    {h:"SCIENTIFIC STUDY",t:"Study Links Sedentary Work to 40% Higher Healthcare Costs",st:"A landmark study published in a top medical journal links desk-bound remote work to dramatically higher long-term healthcare costs. Corporations begin mandating movement breaks. Standing desk sales explode. Some companies revamp their entire office policies, while remote-first firms face backlash.",hints:["Health and wellness companies may see long-term tailwinds","But the immediate business impact is ambiguous â€” is this good or bad for employers?","Think about who sells products related to physical activity at work"],ch:{BHG:16,NSG:14,DON:10,SFLY:8,ESI:12,ALR:8,IDV:-8,FLEX:-12,LKBX:5,GENG:3,VCOF:4,DHS:3,AMM:2,PE:2,CID:4,GSW:5,HERB:2,TRS:1,SZA:1,MCMS:2,RVR:-4,YSHP:-3,PNA:-2,CONI:-3}},
+    {h:"GEOPOLITICAL",t:"China and Taiwan Sign a Surprise Peace Agreement",st:"In a stunning diplomatic development, China and Taiwan sign a preliminary peace framework. Markets are caught completely off guard. The implications are enormous â€” supply chains that were being rerouted don't need to be anymore. Some domestic manufacturers who benefited from tension now face new competition.",hints:["Supply chain rerouting costs reverse â€” importers win back margins","Domestic manufacturers who benefited from trade tension face renewed competition","Geopolitical stability typically helps travel and trade"],ch:{HERB:22,PNA:18,YSHP:15,CID:14,GSW:12,NSG:10,CONI:12,RVR:8,AMM:5,DHS:5,VCOF:5,ALR:4,FLEX:3,IDV:3,PE:3,TRS:-14,SZA:-12,MCMS:-8,ESI:-5,GENG:-3,BHG:2,LKBX:2,SFLY:2,DON:2}},
+    {h:"INDUSTRY REPORT",t:"Commercial Real Estate Vacancy Hits 35% in Major Cities",st:"A devastating commercial real estate report shows 35% vacancy rates across major U.S. cities. This is catastrophic for traditional office landlords. But flexible workspace companies argue this is their moment. Meanwhile, the companies that own the buildings â€” not just lease them â€” face an existential crisis.",hints:["Flexible workspace could benefit as companies downsize long-term leases","But the commercial real estate crash also hurts anyone holding property","Think carefully: who owns vs. who leases?"],ch:{FLEX:28,IDV:10,PE:8,YSHP:5,PNA:5,LKBX:4,ESI:12,SFLY:5,AMM:3,GENG:2,BHG:2,RVR:2,TRS:-8,SZA:-6,MCMS:-25,HERB:-5,ALR:-4,DHS:-3,VCOF:-2,CID:-6,GSW:-4,NSG:-3,DON:-2,CONI:-10}},
+    {h:"CONSUMER DATA",t:"Credit Card Debt Hits All-Time High â€” But Spending Is Still Strong",st:"Americans collectively hit $1.3 trillion in credit card debt, a new record. Yet consumer spending is up 3.2% year-over-year. Analysts disagree on what this means: Is the consumer resilient, or is this a ticking time bomb? Premium brands report strong sales while budget chains see traffic declining.",hints:["Premium brands are outperforming budget brands â€” what does that tell you?","Credit card debt is high, but spending is strong â€” who benefits from credit card usage?","Think about which companies serve high-income vs. low-income consumers"],ch:{GSW:20,CID:16,VCOF:14,CONI:12,RVR:10,DON:8,ALR:-10,DHS:-14,NSG:8,BHG:4,ESI:6,IDV:5,PE:4,PNA:8,YSHP:6,LKBX:3,AMM:3,SFLY:2,FLEX:3,GENG:2,TRS:1,SZA:1,MCMS:1,HERB:2}},
+    {h:"TECH REPORT",t:"Quantum Computing Breakthrough â€” But It's 5 Years Away from Commercial Use",st:"IBM announces a genuine quantum computing breakthrough that will eventually make current encryption obsolete. Cybersecurity companies face a paradox: their current products may soon be worthless, but the transition period creates massive consulting demand. The actual commercial rollout is 5 years away.",hints:["Near-term: consulting and transition planning creates demand","Long-term: current encryption tech becomes obsolete â€” but that's future you's problem","Who benefits from helping companies prepare for a tech transition?"],ch:{ESI:24,IDV:15,PE:12,LKBX:-10,SFLY:-8,AMM:6,GENG:4,BHG:3,HERB:3,FLEX:4,ALR:2,DHS:1,VCOF:1,DON:1,NSG:1,TRS:2,SZA:2,MCMS:2,RVR:3,PNA:3,YSHP:2,CID:1,GSW:1,CONI:1}},
+    {h:"MIXED SIGNALS",t:"Strong Jobs Report But Manufacturing PMI Contracts",st:"A confusing set of data: job growth beats expectations, but the manufacturing purchasing managers index (PMI) falls below 50, signaling contraction. This means services are booming but factory output is shrinking. The market doesn't know which number to focus on.",hints:["Service sector companies benefit from strong employment","Manufacturing and industrial companies face the PMI contraction signal","Think: which of these 24 companies are service businesses vs. manufacturers?"],ch:{ESI:18,LKBX:12,SFLY:10,BHG:8,IDV:8,PE:8,RVR:6,CONI:6,DHS:5,VCOF:5,DON:5,AMM:4,YSHP:5,PNA:5,FLEX:4,TRS:-14,SZA:-12,MCMS:-10,GENG:-5,HERB:-8,ALR:-3,CID:-4,GSW:-3,NSG:-4}},
+    {h:"FINAL ROUND",t:"The Fed Hints at Cuts â€” But Uses the Word 'Gradual'",st:"The Federal Reserve chair gives a speech hinting at future rate cuts but emphasizes the word 'gradual' seven times. Markets interpret this completely differently depending on who you ask. Growth investors hear 'cuts are coming.' Value investors hear 'don't get excited.' Volatility spikes to a six-month high.",hints:["'Gradual cuts' is vague â€” who benefits from even a small decrease in rates?","High-debt companies benefit most from any rate relief","Growth and real estate stocks typically rally on cut signals even if ambiguous"],ch:{MCMS:20,FLEX:18,IDV:16,RVR:14,PE:12,YSHP:10,PNA:10,CONI:10,GENG:8,ESI:8,DON:6,CID:6,NSG:5,ALR:4,DHS:4,VCOF:4,BHG:2,TRS:2,SZA:2,HERB:2,LKBX:2,SFLY:2,AMM:2,GSW:4}}
+  ]},
+  {id:6,t:"Hard 2",s:"Second Order Effects",c:"#a78bfa",r:[
+    {h:"POLICY CHANGE",t:"Minimum Wage Raised to $20 Nationally",st:"Congress passes a federal minimum wage hike to $20/hour effective in 90 days. The economic effects will ripple everywhere â€” some companies will benefit from workers having more money to spend, others will face sharply higher operating costs. The net effect depends entirely on your company's exposure.",hints:["Labor-intensive businesses face higher costs","But workers earning more means more consumer spending somewhere","Think about which companies employ lots of minimum wage workers vs. which ones sell to them"],ch:{DHS:-20,VCOF:-15,CONI:-12,NSG:-8,CID:-6,GSW:-5,ALR:10,YSHP:8,PNA:7,IDV:6,PE:5,LKBX:4,SFLY:3,RVR:4,DON:-8,BHG:3,ESI:6,AMM:2,FLEX:2,GENG:2,HERB:-5,TRS:1,SZA:1,MCMS:2}},
+    {h:"DEMOGRAPHIC DATA",t:"Millennials Finally Buying Homes â€” In Smaller Cities",st:"New census data shows millennials are finally buying homes, but not in major cities â€” they're flooding mid-sized cities in the South and Midwest. These markets have lower costs but need new infrastructure. The ripple effects go far beyond just home builders.",hints:["Home construction in lower-cost markets benefits","Think about what a new homeowner needs to buy â€” what companies sell those things?","Mid-sized city expansion means new commercial and security infrastructure too"],ch:{MCMS:28,TRS:18,SZA:16,SFLY:20,LKBX:12,DHS:10,VCOF:8,HERB:8,ESI:10,ALR:6,NSG:5,FLEX:8,GENG:5,BHG:3,AMM:2,IDV:3,PE:2,PNA:4,YSHP:4,CONI:-8,RVR:-4,CID:-5,GSW:-4,DON:-2}},
+    {h:"INDUSTRY SHIFT",t:"Major Airlines Go Bankrupt â€” But Travel Demand Is Fine",st:"Three major airlines file for bankruptcy due to debt, not lack of customers. Travel demand is actually at record highs. Alternative travel options â€” road trips, trains, cruises â€” surge to fill the gap. The absence of cheap flights changes behavior in ways that ripple through hospitality and consumer spending.",hints:["Airlines going bust doesn't mean people stop traveling â€” they just travel differently","Road trip spending means hospitality, gas, and food along highways benefit","Think about who benefits when people can't fly cheaply"],ch:{CONI:25,DHS:18,VCOF:15,HERB:12,ALR:10,NSG:8,CID:6,GSW:6,RVR:-8,AMM:4,ESI:3,BHG:3,SFLY:3,LKBX:2,FLEX:2,MCMS:3,IDV:1,PE:1,GENG:1,TRS:1,SZA:1,DON:4,PNA:5,YSHP:4}},
+    {h:"SCIENTIFIC NEWS",t:"Scientists Discover Coffee Extends Lifespan by 7 Years",st:"A peer-reviewed study in Nature Medicine concludes that drinking three cups of Vigil Coffee's specific bean blend daily extends average lifespan by seven years. The study goes instantly viral. But buried in the study is a footnote: the effect only applies to one specific coffee brand. Investors have to figure out which companies benefit beyond the obvious.",hints:["The obvious play is the coffee company â€” but how much is already priced in after the news breaks?","Health insurance companies benefit from longer-living customers... or do they?","Think second-order: longer lives mean more of everything people buy"],ch:{VCOF:45,BHG:-10,ALR:12,NSG:8,DON:6,CONI:5,RVR:4,DHS:5,GSW:3,CID:3,IDV:2,PE:2,LKBX:2,SFLY:2,AMM:2,HERB:2,ESI:2,FLEX:1,MCMS:1,TRS:1,SZA:1,GENG:1,PNA:3,YSHP:3}},
+    {h:"GLOBAL TREND",t:"Europe Bans Single-Use Plastics â€” U.S. Companies Scramble",st:"The EU implements the world's strictest plastic ban, affecting any company selling goods in Europe. U.S. companies that export to Europe must reformulate their packaging within 18 months. Consulting firms specializing in compliance and materials science are overwhelmed with new clients.",hints:["Companies that export consumer goods to Europe face compliance costs","Consulting and materials companies that help with the transition benefit","Think about which American companies sell physical consumer goods to European consumers"],ch:{ESI:25,SZA:18,LKBX:10,IDV:8,PE:6,HERB:6,GENG:5,BHG:4,AMM:3,FLEX:4,TRS:5,MCMS:3,ALR:-8,DHS:-10,VCOF:-6,GSW:-8,CID:-12,NSG:-6,PNA:-4,YSHP:-4,RVR:-2,DON:-2,CONI:-3,SFLY:2}},
+    {h:"LABOR NEWS",t:"Gig Economy Ruled 'Employment' by Supreme Court",st:"In a landmark 5-4 decision, the Supreme Court rules that gig economy workers are employees, not contractors. Every company using gig workers must now provide benefits and pay payroll taxes. The cost implications are enormous for labor-intensive businesses. But some companies have already been quietly preparing.",hints:["Companies heavily reliant on gig/contract labor face higher costs","Companies that already have full employee models gain a competitive advantage","Think about which of these companies use lots of contractors vs. which pay full wages"],ch:{ESI:20,LKBX:10,IDV:8,PE:8,SFLY:6,BHG:5,AMM:4,GENG:4,FLEX:-15,HERB:-18,DHS:-14,VCOF:-12,CONI:-10,NSG:-6,CID:-8,GSW:-5,ALR:-5,PNA:4,YSHP:3,TRS:3,SZA:3,MCMS:2,RVR:-4,DON:-6}},
+    {h:"CONSUMER BEHAVIOR",t:"Americans Are Sleeping Less â€” Productivity Apps Boom",st:"A major sleep study reveals Americans now average 5.8 hours of sleep, the lowest ever recorded. Productivity and focus apps see record downloads. Energy drink sales hit all-time highs. But healthcare costs for sleep-related disorders are quietly ballooning. The economy runs faster but sicker.",hints:["Companies that sell productivity or energy-related products benefit","Healthcare companies see long-term demand from sleep disorders","Think about which companies help people function with less sleep"],ch:{IDV:18,PE:14,BHG:12,LKBX:10,AMM:8,VCOF:12,DHS:6,ESI:8,SFLY:5,GENG:3,ALR:4,FLEX:3,RVR:-5,DON:-8,CONI:-4,NSG:-3,CID:-2,GSW:-3,TRS:1,SZA:1,MCMS:1,HERB:2,PNA:4,YSHP:3}},
+    {h:"REGULATORY",t:"SEC Requires All Companies to Disclose Climate Risk",st:"The SEC mandates that all public companies disclose detailed climate risk assessments. Companies with significant carbon exposure see their stock drop as the true cost of their emissions becomes visible. Clean companies see a rerating. Consulting firms that specialize in compliance are immediately overwhelmed.",hints:["Companies with clean operations get a valuation uplift","Carbon-intensive companies face a valuation haircut when costs become visible","Compliance consultants are in immediate high demand"],ch:{GENG:30,ESI:28,LKBX:12,IDV:10,PE:10,SFLY:8,BHG:5,FLEX:6,AMM:4,MCMS:3,ALR:2,DHS:1,PNA:3,YSHP:3,TRS:-18,SZA:-15,HERB:-10,CONI:-8,DHS:1,CID:-6,GSW:-4,NSG:-3,DON:-2,RVR:-3}},
+    {h:"MARKET STRUCTURE",t:"Index Fund Rebalancing Causes Unusual Price Moves",st:"The quarterly rebalancing of major index funds forces massive buy and sell orders regardless of company fundamentals. Stocks being added to the S&P 500 surge purely from mechanical buying. Stocks being removed crater. None of this reflects actual business performance â€” it's pure mechanics.",hints:["This is a trap round â€” the winners and losers are random, not fundamental","The hints won't help you much here â€” this is about market mechanics, not business logic","Sometimes the market moves for reasons that have nothing to do with a company's actual performance"],ch:{MCMS:18,NSG:14,DON:12,CONI:10,ALR:8,HERB:8,TRS:6,SZA:5,DHS:5,VCOF:4,GSW:4,CID:3,FLEX:3,BHG:2,ESI:2,IDV:-8,PE:-6,LKBX:-5,SFLY:-4,AMM:-5,RVR:-8,YSHP:-4,PNA:-3,GENG:-2}},
+    {h:"FINAL ROUND",t:"An AI Model Predicts Which Stocks Will Win â€” And Goes Viral",st:"A hedge fund publishes an AI model's stock picks and the list goes viral. Millions of retail investors pile into the named stocks. The AI picked: LKBX, GENG, CONI, and MCMS. Whether the AI is right or wrong doesn't matter â€” enough people are buying to make it a self-fulfilling prophecy. For now.",hints:["When millions of people buy the same stocks, those stocks go up â€” regardless of fundamentals","The stocks NOT on the list may sell off as capital rotates","Think about: what happens after a viral stock pick frenzy? How long does it last?"],ch:{LKBX:32,GENG:28,CONI:24,MCMS:22,ESI:8,BHG:4,SFLY:5,TRS:3,SZA:3,HERB:3,IDV:-6,PE:-5,RVR:-8,AMM:-5,YSHP:-4,PNA:-4,FLEX:-3,CID:-5,GSW:-4,NSG:-3,ALR:-2,DHS:-2,VCOF:-1,DON:-2}}
+  ]},
+  {id:7,t:"Hard 3",s:"Contrarian Plays",c:"#f472b6",r:[
+    {h:"COUNTERINTUITIVE",t:"Crime Rate Falls 30% â€” But Security Companies Surge",st:"The FBI reports a 30% drop in violent crime nationwide. Conventional wisdom says this should hurt security companies. Instead, SFLY and LKBX surge â€” analysts explain that low crime makes people more comfortable investing in preventive security, not less. Fear-based purchasing actually falls, but proactive security rises.",hints:["This is a counterintuitive scenario â€” falling crime can mean MORE security spending, not less","Think about the difference between reactive and proactive security demand","What happens to insurance companies when risk drops?"],ch:{SFLY:25,LKBX:20,ESI:14,BHG:15,IDV:6,PE:5,AMM:3,GENG:2,ALR:4,HERB:3,FLEX:2,MCMS:2,TRS:1,SZA:1,DHS:2,VCOF:2,NSG:3,CID:2,GSW:2,DON:1,RVR:1,PNA:1,YSHP:1,CONI:2}},
+    {h:"PARADOX",t:"Strong Dollar Makes U.S. Exporters Suffer â€” Importers Win",st:"The dollar strengthens 15% against all major currencies. This sounds good for America but it's a nightmare for U.S. exporters â€” their goods suddenly cost 15% more for foreign buyers. Meanwhile, companies that import goods see their costs drop. The effect is a complete reversal of the usual trade narrative.",hints:["A strong dollar hurts companies that sell to other countries","A strong dollar helps companies that buy materials from other countries","Think carefully: which of our 24 companies export vs. which import their materials?"],ch:{HERB:-15,TRS:-12,SZA:-10,MCMS:-8,GENG:-5,ESI:-4,ALR:-3,VCOF:12,DHS:10,CID:15,GSW:12,NSG:10,CONI:8,PNA:8,YSHP:8,RVR:6,IDV:4,PE:4,LKBX:3,SFLY:3,AMM:3,BHG:2,FLEX:3,DON:2}},
+    {h:"SURPRISE REPORT",t:"Work From Home Officially Dead â€” Companies Mandate Office Return",st:"The 10 largest U.S. employers simultaneously announce full return-to-office mandates effective immediately. Commuter patterns change overnight. Commercial real estate bounces. Coffee shops near offices surge. But tech companies that built remote-work tools face a crisis.",hints:["Return-to-office means commercial real estate and urban amenities recover","Commuter-driven spending (coffee, food, retail near offices) surges","Remote-work enabling companies may suffer as their core value proposition weakens"],ch:{FLEX:30,VCOF:22,DHS:16,CONI:14,GSW:10,CID:8,NSG:6,ALR:5,ESI:8,MCMS:4,TRS:3,SZA:3,HERB:3,LKBX:-10,AMM:-14,IDV:-8,PE:-6,SFLY:-4,YSHP:-5,PNA:-4,RVR:-3,BHG:2,GENG:1,DON:2}},
+    {h:"HIDDEN EFFECT",t:"New Emissions Rules â€” The Winners Aren't Who You Think",st:"New EPA rules require all heavy trucks to meet emission standards by 2026. The obvious play is green energy. But the hidden play is consulting firms who will guide 10,000 trucking companies through compliance. And steel makers who will supply the lighter alloy components for retrofitted engines.",hints:["The obvious play (green energy) is correct but may already be priced in","The less obvious plays are the companies involved in the transition process","Who helps companies comply with regulations? Who makes the parts needed for compliance?"],ch:{GENG:20,ESI:30,TRS:18,SZA:14,LKBX:10,BHG:5,IDV:4,PE:4,SFLY:5,HERB:6,FLEX:6,AMM:3,MCMS:3,ALR:2,DON:1,DHS:-8,VCOF:-5,CID:-6,GSW:-5,NSG:-4,CONI:-6,RVR:-3,PNA:-2,YSHP:-2}},
+    {h:"BEHAVIORAL",t:"\"Revenge Travel\" Hits Record High After Years of Restriction",st:"Pent-up travel demand explodes with Americans taking 40% more vacations than pre-pandemic levels. But the spending patterns are unusual: people are choosing bucket-list experiences over cheap beach trips. Premium travel and unique experiences outperform. Budget travel actually underperforms because the demand has shifted upmarket.",hints:["Premium experiences and hospitality benefit â€” but budget options don't","Think about which companies serve high-end vs. budget travelers","The consumer is spending on quality over quantity â€” which brands does that help?"],ch:{CONI:28,RVR:16,GSW:14,CID:12,VCOF:18,DON:10,NSG:8,DHS:-5,ALR:-8,ESI:8,BHG:4,IDV:3,PE:3,LKBX:3,SFLY:3,AMM:2,HERB:6,FLEX:2,MCMS:2,TRS:1,SZA:1,GENG:2,PNA:6,YSHP:4}},
+    {h:"STRUCTURAL SHIFT",t:"Baby Boomers Are Dying â€” The Great Wealth Transfer Begins",st:"Economists confirm the great wealth transfer is accelerating: $84 trillion will pass from Baby Boomers to Millennials over the next 20 years. The immediate effect is complex â€” estates are sold, portfolios are liquidated, and spending patterns shift dramatically as younger inheritors spend differently than their parents.",hints:["Young inheritors spend differently than their parents â€” think experiences over things","Healthcare companies benefit from an aging population that needs more care before passing","The wealth transfer favors companies that younger wealthy consumers prefer"],ch:{CONI:18,RVR:14,DON:12,IDV:10,PE:8,YSHP:8,PNA:8,FLEX:6,BHG:20,ESI:12,LKBX:6,SFLY:5,VCOF:6,DHS:-5,ALR:-8,GSW:-6,CID:-4,NSG:-3,TRS:-4,SZA:-3,MCMS:4,GENG:3,AMM:3,HERB:2}},
+    {h:"UNEXPECTED",t:"A Major Storm Causes a Nationwide Internet Outage for 48 Hours",st:"A once-in-a-century ice storm takes down major internet infrastructure across the Eastern seaboard for 48 hours. Remote work collapses. E-commerce halts. Physical stores that were declining suddenly have lines out the door. The temporary nature of the event means the stock moves are mostly noise â€” or are they?",hints:["This is a short-term disruption â€” think about who benefits from physical commerce returning briefly","The long-term investment thesis for tech isn't broken, but sentiment hurts short-term","Physical retail and local services see a brief surge â€” who in our list benefits?"],ch:{DHS:15,VCOF:14,CONI:12,NSG:10,GSW:8,CID:8,ALR:6,DON:5,HERB:5,TRS:3,SZA:3,MCMS:3,BHG:3,SFLY:2,ESI:2,IDV:-15,PE:-12,LKBX:-10,AMM:-14,YSHP:-10,PNA:-8,FLEX:-6,RVR:-8,GENG:-3}},
+    {h:"SECOND ORDER",t:"Electric Vehicles Reach 50% Market Share â€” Overnight Winners Aren't Obvious",st:"EV adoption crosses 50% of all new car sales. The obvious play â€” battery companies â€” is already priced in. The second-order effects are less obvious: copper and aluminum demand surges, home charging infrastructure creates construction demand, and the companies that install and maintain EV charging stations are the real hidden winners.",hints:["The obvious EV play is already priced in â€” look for second-order effects","What materials does an EV use more of than a gas car?","Who builds the infrastructure that supports 50% EV adoption?"],ch:{SZA:25,TRS:18,MCMS:15,ESI:20,GENG:12,FLEX:14,LKBX:8,SFLY:6,IDV:5,PE:5,HERB:6,BHG:3,AMM:3,ALR:2,DHS:1,VCOF:1,CONI:2,NSG:2,CID:2,GSW:2,RVR:1,DON:1,PNA:2,YSHP:2}},
+    {h:"GEOPOLITICAL",t:"U.S. Imposes Sanctions on a Major Rare Earth Supplier",st:"The U.S. imposes sweeping sanctions on the country that supplies 60% of the world's rare earth minerals â€” critical for tech hardware, wind turbines, and defense systems. Stockpiles are being depleted. Alternative suppliers can't scale fast enough. The companies most exposed to rare earth dependency are about to find out the hard way.",hints:["Tech hardware and wind energy companies depend on rare earth minerals","Companies that can substitute or have stockpiles are better positioned","Who is most vulnerable to a supply shock in rare materials?"],ch:{GENG:-20,IDV:-15,PE:-18,AMM:-12,LKBX:-8,SFLY:-6,TRS:10,SZA:15,ESI:18,BHG:5,ALR:4,HERB:4,FLEX:3,MCMS:3,DHS:2,VCOF:2,NSG:2,CID:2,GSW:2,CONI:3,RVR:2,DON:1,PNA:-4,YSHP:-3}},
+    {h:"FINAL ROUND",t:"The Earnings Season No One Predicted",st:"The final earnings season of the year produces results that defy all analyst predictions. Companies that everyone expected to do well disappoint. Companies written off as dead come roaring back. The lesson of the year: the market is constantly humbling the overconfident.",hints:["Contrarian thinking is rewarded in this round","The companies everyone ignored all year may have the biggest surprises","Sometimes the best trade is the one that goes against the consensus"],ch:{HERB:28,TRS:22,SZA:20,DHS:18,VCOF:16,ALR:14,CONI:14,NSG:12,MCMS:10,DON:8,FLEX:10,BHG:5,GENG:5,ESI:5,SFLY:4,IDV:-12,PE:-10,LKBX:-8,RVR:-10,YSHP:-8,PNA:-6,AMM:-5,CID:-6,GSW:-5}}
+  ]},
+  {id:8,t:"Hard 4",s:"The Real World",c:"#38bdf8",r:[
+    {h:"COMPLEX DATA",t:"CPI Up 0.3%, PPI Up 0.8% â€” What Does the Spread Mean?",st:"Consumer inflation ticks up modestly, but producer prices surge. When producer prices rise faster than consumer prices, it means companies are absorbing costs rather than passing them to customers. Margins get squeezed. The companies that can pass through costs survive. The ones who can't see their profits collapse.",hints:["When producers pay more but can't charge more, margins shrink","Which companies have pricing power â€” the ability to raise prices without losing customers?","Premium brands with loyal customers can pass costs through; commodity businesses cannot"],ch:{GSW:16,VCOF:14,CID:12,CONI:10,RVR:8,IDV:6,PE:6,LKBX:5,ESI:5,BHG:4,SFLY:4,DON:4,ALR:-10,DHS:-14,NSG:-8,TRS:-10,SZA:-8,HERB:-12,MCMS:-6,FLEX:-4,GENG:-3,AMM:2,PNA:3,YSHP:3}},
+    {h:"POLICY PARADOX",t:"Government Subsidizes Both Coal AND Solar Simultaneously",st:"In a bizarre political compromise, Congress passes a bill that subsidizes both coal energy and solar energy simultaneously. The logic is incoherent, but the effects are real: energy prices fall, manufacturers benefit, and the market tries to figure out which energy sector wins more. Spoiler: the one with lower long-term costs wins.",hints:["Both energy types get subsidies, but solar has lower long-term operating costs","Falling energy prices help manufacturers who use lots of electricity","The winner isn't about subsidies â€” it's about which technology has the better future"],ch:{GENG:22,TRS:12,SZA:10,MCMS:8,ESI:6,FLEX:5,HERB:6,LKBX:4,IDV:4,PE:3,BHG:3,ALR:3,DHS:5,VCOF:4,NSG:3,AMM:2,SFLY:3,CID:2,GSW:2,DON:1,RVR:2,PNA:2,YSHP:2,CONI:2}},
+    {h:"BEHAVIORAL ECON",t:"'Doom Spending' Becomes a Documented Trend",st:"Economists coin the term 'doom spending' â€” buying luxury goods and experiences because people feel the future is uncertain. Millennials and Gen Z report they'd rather spend now than save for a future that feels unstable. Premium brands, travel, and entertainment surge. Financial planning services struggle.",hints:["'Doom spending' means people buy experiences and premium goods now rather than save","Which companies benefit when people choose pleasure over financial prudence?","Healthcare and insurance may actually suffer if people deprioritize future planning"],ch:{GSW:24,CID:20,VCOF:18,CONI:16,RVR:14,DON:10,NSG:8,ALR:-6,BHG:-8,ESI:-4,LKBX:-3,SFLY:-2,DHS:8,PNA:10,YSHP:10,IDV:6,PE:5,AMM:3,FLEX:4,RVR:14,TRS:1,SZA:1,MCMS:2,GENG:2,HERB:3}},
+    {h:"SUPPLY SHOCK",t:"Semiconductor Shortage 2.0 â€” Worse Than Before",st:"A combination of factory fires, trade restrictions, and a cyberattack on fabrication plants creates a semiconductor shortage worse than 2021. Every company that requires chips faces production halts. The shortage hits tech hardest, but the ripple effects hit every industry with smart components.",hints:["Companies that make physical goods requiring chips face production shutdowns","Companies that provide services rather than goods are insulated","Who benefits from a shortage? Companies that stockpiled chips, and companies that help manage the crisis"],ch:{ESI:20,LKBX:12,PE:-20,IDV:-16,AMM:-18,SFLY:-10,GENG:-15,MCMS:-8,TRS:6,SZA:5,HERB:4,FLEX:4,BHG:5,ALR:3,DHS:3,VCOF:3,NSG:2,CID:2,GSW:3,CONI:2,DON:2,RVR:-5,PNA:-6,YSHP:-4}},
+    {h:"LONG GAME",t:"Demographics Report: U.S. Population Growth at Zero",st:"The Census Bureau confirms U.S. population growth has hit zero for the first time in history. No growth means slower overall economic expansion, but the pie is being redistributed. Companies serving existing customers better win. Companies relying on new customer growth suffer. The economy shifts from expansion to optimization.",hints:["Zero population growth hurts companies dependent on new customer acquisition","Companies with loyal, repeat customers are more resilient","Think about which companies have recurring demand vs. which need constant new customers"],ch:{BHG:14,VCOF:12,DHS:10,ALR:8,ESI:10,LKBX:8,SFLY:7,GENG:5,IDV:4,PE:4,AMM:3,RVR:3,DON:2,HERB:3,TRS:2,SZA:2,MCMS:-10,FLEX:-8,CONI:-12,NSG:-5,CID:-8,GSW:-6,PNA:-6,YSHP:-5}},
+    {h:"HIDDEN NEWS",t:"A Small Story That Will Matter: Longshoremen Strike Ends â€” With New Automation Clause",st:"The national longshoremen strike ends with a contract that includes unprecedented automation rights for ports. This seems like a dry labor story. But the implications for every company that ships physical goods domestically will reshape logistics costs over the next two years. The companies that figure this out early win.",hints:["Automation in ports means lower long-term shipping costs for companies that move physical goods","The shipping company itself may actually lose if automation reduces their labor advantage","Think about who ships lots of goods and who would benefit from cheaper logistics"],ch:{HERB:20,PNA:14,YSHP:12,DHS:8,ALR:6,NSG:5,CID:5,GSW:4,VCOF:4,TRS:4,SZA:3,MCMS:3,FLEX:3,IDV:3,PE:3,ESI:8,LKBX:4,SFLY:3,GENG:2,BHG:2,AMM:2,DON:1,RVR:2,CONI:3}},
+    {h:"MACRO TRAP",t:"The Yield Curve Inverts â€” Does Anyone Know What That Means?",st:"The U.S. Treasury yield curve inverts for the third time this year, with short-term bonds yielding more than long-term bonds. Historically this has predicted recessions. But the last two inversions didn't cause recessions. Analysts fight publicly on TV. No one actually knows what will happen, but everyone is reacting as if they do.",hints:["An inverted yield curve historically signals recession â€” defensive stocks typically benefit","But this signal has been wrong twice recently â€” does the market overreact?","Think about whether you want to play defense or bet the signal is wrong again"],ch:{BHG:15,LKBX:12,SFLY:10,ALR:8,ESI:8,DHS:5,VCOF:4,HERB:4,GENG:4,TRS:3,SZA:3,AMM:3,IDV:-10,PE:-12,RVR:-14,FLEX:-12,MCMS:-10,YSHP:-8,PNA:-6,CID:-8,GSW:-6,NSG:-5,DON:-4,CONI:-8}},
+    {h:"INDUSTRY INSIGHT",t:"'Dark Stores' Replace Retail â€” E-Commerce Goes Hyper-Local",st:"Major e-commerce players convert empty retail spaces into 'dark stores' â€” warehouses that fulfill hyperlocal delivery in under 15 minutes. This eliminates the last advantage of physical retail. But it also creates massive demand for real estate, logistics technology, and local data management.",hints:["E-commerce wins in obvious ways, but the real estate play is the surprising one","Who manages and secures the data for thousands of hyperlocal distribution points?","Physical retail faces its final disruption â€” but the companies pivoting into dark stores win"],ch:{PNA:24,YSHP:20,FLEX:18,LKBX:14,HERB:12,ESI:10,IDV:8,PE:8,SFLY:8,AMM:5,GENG:4,TRS:3,SZA:3,MCMS:4,BHG:2,ALR:-10,DHS:-14,VCOF:-8,CID:-12,GSW:-10,NSG:-8,DON:-4,RVR:-2,CONI:-6}},
+    {h:"COMPLEX CAUSE",t:"College Enrollment Drops 25% â€” But the Ripple Effects Are Complicated",st:"College enrollment drops to its lowest level since 1970 as young people choose trade schools and entrepreneurship. This devastates traditional education but creates demand for alternative credentials. Companies that train workers, provide career tools, and support non-traditional career paths surge. But the ripple goes further â€” less educated workers mean more demand for consulting and professional services.",hints:["Traditional education loses, but alternative training and career tools benefit","Fewer college-educated workers means companies pay more for consulting expertise","Think about second-order effects: what happens to companies when fewer people get 4-year degrees?"],ch:{DON:-15,ESI:22,IDV:14,PE:12,LKBX:10,FLEX:8,AMM:6,SFLY:5,BHG:4,GENG:4,HERB:5,TRS:4,SZA:3,MCMS:3,ALR:3,DHS:3,VCOF:3,NSG:6,CID:4,GSW:4,RVR:3,PNA:5,YSHP:4,CONI:2}},
+    {h:"FINAL ROUND",t:"A Single Tweet Crashes and Then Saves the Market in 24 Hours",st:"A billionaire tweets 'sell everything' at 9am â€” markets crash 6%. He deletes it four hours later and tweets 'I was wrong, buy everything' â€” markets recover 5%. Net effect over the day: down 1%. But enormous wealth transferred between panickers and those who held. The lesson: emotional market moves create opportunities.",hints:["Overreaction and recovery means the best players stayed calm and bought the dip","The companies with strong fundamentals ended the day roughly where they started","Think about who benefits from volatility itself â€” data, security, and consulting firms that manage crises"],ch:{ESI:18,LKBX:14,SFLY:12,BHG:8,IDV:8,PE:8,RVR:10,VCOF:6,CONI:8,DHS:5,ALR:4,HERB:4,TRS:4,SZA:4,MCMS:5,GENG:5,AMM:3,FLEX:4,NSG:3,CID:3,GSW:3,DON:3,PNA:5,YSHP:5}}
+  ]}
+];
+
+const GAMES = [...GAMES_NORMAL, ...GAMES_HARD];
+
+// STATE
+let gameCode="",teamId="",gameState=null,myTeam=null,sharesInput={},prevScr="host-round",dbListener=null,selGame=0,maxTeams=6,hardMode=false;
+
+// SCREEN
+function go(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  $('s-'+name).classList.add('active');
+  window.scrollTo(0,0);
+}
+
+// INIT UI
+let currentMode='normal';
+function setMode(mode){
+  currentMode=mode;
+  const isHard=mode==='hard';
+  $('mode-normal').style.border=!isHard?'2px solid #4ade80':'2px solid rgba(255,255,255,0.1)';
+  $('mode-normal').style.background=!isHard?'#4ade8012':'rgba(255,255,255,0.03)';
+  $('mode-normal').style.color=!isHard?'#4ade80':'#64748b';
+  $('mode-hard').style.border=isHard?'2px solid #f59e0b':'2px solid rgba(255,255,255,0.1)';
+  $('mode-hard').style.background=isHard?'#f59e0b12':'rgba(255,255,255,0.03)';
+  $('mode-hard').style.color=isHard?'#f59e0b':'#64748b';
+  $('mode-desc').textContent=isHard?'Hard mode â€” ambiguous scenarios, second-order effects, and no obvious answers.':'Medium difficulty â€” hints clearly guide your picks each round.';
+  $('mode-desc').style.color=isHard?'#f59e0b':'#475569';
+  renderGamePicker();
+  selGame=0;
+  const games=isHard?GAMES_HARD:GAMES_NORMAL;
+  $('cfg-game').textContent=games[0].s;
+}
+
+function renderGamePicker(){
+  const games=currentMode==='hard'?GAMES_HARD:GAMES_NORMAL;
+  $('game-picker').innerHTML=games.map((g,i)=>`<div onclick="selG(${i})" id="gopt-${i}" style="border:2px solid ${i===0?g.c:'rgba(255,255,255,0.08)'};background:${i===0?g.c+'12':'rgba(255,255,255,0.03)'};border-radius:10px;padding:14px 16px;cursor:pointer;">
+    <div style="font-size:12px;font-weight:800;color:${g.c};letter-spacing:1px;">${g.t}</div>
+    <div style="font-size:15px;font-weight:700;color:#e2e8f0;margin-top:3px;">${g.s}</div>
+    <div style="font-size:11px;color:#475569;margin-top:3px;">10 rounds Â· 24 stocks</div>
+  </div>`).join('');
+}
+
+function initUI(){
+  renderGamePicker();
+  $('tc-picker').innerHTML=[2,3,4,5,6,7,8,9,10].map(n=>`<button id="tc${n}" onclick="selTC(${n})" style="border:1px solid ${n===6?'#4ade80':'rgba(255,255,255,0.1)'};background:${n===6?'#4ade80':'rgba(255,255,255,0.06)'};color:${n===6?'#0a0f1e':'#94a3b8'};border-radius:99px;padding:7px 16px;font-size:13px;font-weight:700;cursor:pointer;font-family:Georgia,serif;">${n}</button>`).join('');
+  const inds=["all",...[...new Set(Object.values(STK).map(s=>s.i))].sort()];
+  $('ind-filter').innerHTML=inds.map(v=>`<option value="${v}">${v==="all"?"All Industries":v}</option>`).join('');
+}
+function selG(i){
+  selGame=i;
+  const games=currentMode==='hard'?GAMES_HARD:GAMES_NORMAL;
+  games.forEach((g,j)=>{const o=$(`gopt-${j}`);o.style.border=`2px solid ${j===i?g.c:'rgba(255,255,255,0.08)'}`;o.style.background=j===i?`${g.c}12`:'rgba(255,255,255,0.03)';});
+  $('cfg-game').textContent=games[i].s;
+}
+function selTC(n){
+  maxTeams=n;
+  [2,3,4,5,6,7,8,9,10].forEach(m=>{const b=$(`tc${m}`);b.style.background=m===n?'#4ade80':'rgba(255,255,255,0.06)';b.style.color=m===n?'#0a0f1e':'#94a3b8';b.style.borderColor=m===n?'#4ade80':'rgba(255,255,255,0.1)';});
+  $('cfg-teams').textContent=`Up to ${n} teams`;
+}
+function selDiff(mode){
+  hardMode=mode==='hard';
+  const dn=$('diff-normal');const dh=$('diff-hard');
+  dn.style.border=hardMode?'1px solid rgba(255,255,255,0.08)':'2px solid #4ade80';
+  dn.style.background=hardMode?'rgba(255,255,255,0.03)':'#4ade8012';
+  dh.style.border=hardMode?'2px solid #ef4444':'1px solid rgba(255,255,255,0.08)';
+  dh.style.background=hardMode?'rgba(239,68,68,0.1)':'rgba(255,255,255,0.03)';
+  const badge=$('cfg-diff-badge');badge.style.display=hardMode?'inline':'none';
+}
+
+// HOST
+async function hostCreate(){
+  const btn=$('btn-create');btn.disabled=true;btn.textContent='Creating...';
+  const code=rc();gameCode=code;
+  const gs={code,gameIdx:selGame,maxTeams,hardMode:currentMode==='hard',roundIdx:0,phase:'lobby',teams:[],prices:iP(),allMoves:[]};
+  await db.ref(`games/${code}`).set(gs);
+  gameState=gs;
+  if(dbListener)dbListener();
+  dbListener=()=>db.ref(`games/${code}`).off();
+  db.ref(`games/${code}`).on('value',snap=>{if(snap.exists()){gameState=snap.val();onHostChange(gameState);}});
+  renderLobby(gs);go('host-lobby');
+  btn.disabled=false;btn.textContent='ðŸš€ Create Game & Get Code';
+}
+
+function onHostChange(gs){
+  gameState=gs;
+  const sc=document.querySelector('.screen.active')?.id;
+  if(sc==='s-host-lobby'){
+    if(gs.phase==='investing'){renderHRound(gs);}
+    else{renderLobby(gs);}
+  }
+  if(sc==='s-host-round')renderHRound(gs);
+}
+
+function renderLobby(gs){
+  const g=GAMES[gs.gameIdx];
+  setS('lg-lobby','background',g.c);setS('ttl-lobby','color',g.c);
+  setT('ttl-lobby',`${g.t} â€” ${g.s}`);setT('sub-lobby',`Round ${gs.roundIdx+1} of ${g.r.length}${gs.hardMode?' Â· ðŸ”¥ HARD MODE':''}`);
+  setT('big-code',gs.code);setS('big-code','color',g.c);
+  setT('tc-joined',(gs.teams||[]).length);setT('tc-max',gs.maxTeams);
+  const tl=$('lobby-teams');
+  const teams=gs.teams||[];
+  tl.innerHTML=teams.length===0?'<div style="color:#334155;font-style:italic;font-size:14px;grid-column:span 2;">Waiting for teams to join...</div>':
+    teams.map(t=>`<div style="background:${t.color}10;border:1px solid ${t.color}35;border-radius:9px;padding:10px 14px;display:flex;align-items:center;gap:8px;"><span style="font-size:22px;">${t.emoji}</span><span style="font-size:14px;font-weight:700;color:${t.color};">${t.name}</span></div>`).join('');
+  const btn=$('btn-start');btn.disabled=teams.length<1;btn.textContent=`â–¶ Start Round ${gs.roundIdx+1}`;
+}
+
+async function hostStartRound(){
+  let gs=await db.ref(`games/${gameCode}`).get().then(s=>s.val());
+  gs.teams=(gs.teams||[]).map(t=>({...t,submitted:false,roundPicks:[]}));
+  gs.phase='investing';
+  await db.ref(`games/${gameCode}`).set(gs);
+  gameState=gs;
+  renderHRound(gs);
+}
+
+function renderHRound(gs){
+  const g=GAMES[gs.gameIdx];if(!g)return;const rnd=g.r[gs.roundIdx];
+  setS('lg-hround','background',g.c);setS('ttl-hround','color',g.c);
+  setT('ttl-hround',`Round ${gs.roundIdx+1} â€” ${rnd.t}`);
+  $('prog-h').innerHTML=g.r.map((_,i)=>`<div style="flex:1;height:5px;border-radius:99px;background:${i<gs.roundIdx?g.c:i===gs.roundIdx?'#facc15':'rgba(255,255,255,0.07)'}"></div>`).join('');
+  $('news-h').innerHTML=`<div style="font-size:10px;font-weight:800;color:#facc15;letter-spacing:2px;text-transform:uppercase;margin-bottom:4px;">ðŸ“° ${rnd.h} â€” ROUND ${gs.roundIdx+1}</div>
+    <h2 style="font-size:20px;font-weight:900;margin:6px 0 10px;color:#f1f5f9;line-height:1.3;">${rnd.t}</h2>
+    <p style="color:#cbd5e1;line-height:1.75;margin:0 0 10px;font-size:14px;">${rnd.st}</p>
+    <div style="border-top:1px solid rgba(250,204,21,0.2);padding-top:8px;"><div style="font-size:10px;color:#475569;letter-spacing:1px;text-transform:uppercase;margin-bottom:5px;">ðŸ’¡ Analyst Hints</div>
+    ${((gs.hardMode ? rnd.hardHints : rnd.hints) || rnd.hints || []).map(h=>`<div style="font-size:13px;color:${gs.hardMode?'#f87171':'#94a3b8'};margin-bottom:3px;">${gs.hardMode?'âš ï¸':'â€¢'} ${h}</div>`).join('')}</div>`;
+  const teams=gs.teams||[];const sub=teams.filter(t=>t.submitted).length;const tot=teams.length;
+  setT('sub-cnt',`${sub}/${tot}`);setS('sub-cnt','color',sub===tot?'#4ade80':'#facc15');
+  $('sub-bar').style.width=tot>0?`${(sub/tot)*100}%`:'0%';
+  $('sub-bar').style.background=sub===tot?'#4ade80':'#facc15';
+  $('sub-teams').innerHTML=teams.map(t=>`<div style="background:${t.submitted?t.color+'15':'rgba(255,255,255,0.03)'};border:1px solid ${t.submitted?t.color:'rgba(255,255,255,0.07)'};border-radius:8px;padding:8px 12px;display:flex;align-items:center;gap:7px;"><span style="font-size:15px;">${t.submitted?'âœ…':'â³'}</span><span style="font-size:13px;font-weight:700;color:${t.submitted?t.color:'#475569'};">${t.name}</span></div>`).join('');
+  const btn=$('btn-reveal');btn.style.background=sub===tot?'#4ade80':g.c;btn.textContent=sub===tot?'ðŸŽ‰ Reveal Results!':'â© Force Reveal Now';
+  go('host-round');prevScr='host-round';
+}
+
+async function hostReveal(){
+  let gs=await db.ref(`games/${gameCode}`).get().then(s=>s.val());
+  const g=GAMES[gs.gameIdx];if(!g)return;const rnd=g.r[gs.roundIdx];const ch=rnd.ch;
+  const np=Object.fromEntries(Object.entries(gs.prices).map(([t,p])=>[t,parseFloat((p*(1+(ch[t]||0)/100)).toFixed(2))]));
+  gs.teams=(gs.teams||[]).map(t=>{
+    const picks=t.roundPicks||[];const newP={...(t.portfolio||{})};let spent=0;
+    const res=picks.map(p=>{
+      const isSell=p.action==='sell'||p.qty<0;
+      const absQty=Math.abs(p.qty);
+      if(isSell){
+        // selling: get cash back at buy price, gain/loss is price diff * shares
+        spent-=absQty*p.price;
+        const held=(newP[p.ticker]?.shares||0);
+        newP[p.ticker]={shares:Math.max(0,held-absQty)};
+        if(newP[p.ticker].shares===0)delete newP[p.ticker];
+      } else {
+        spent+=absQty*p.price;
+        newP[p.ticker]={shares:(newP[p.ticker]?.shares||0)+absQty};
+      }
+      const pct=ch[p.ticker]||0;
+      const gain=isSell?(p.price-np[p.ticker])*absQty:(np[p.ticker]-p.price)*absQty;
+      return{...p,absQty,isSell,pct,gain,newPrice:np[p.ticker]};
+    });
+    const nc=t.cash-spent;const nn=nc+Object.entries(newP).reduce((s,[k,v])=>s+v.shares*(np[k]||0),0);const rg=res.reduce((s,p)=>s+p.gain,0);
+    return{...t,cash:nc,portfolio:newP,prices:np,history:[...(t.history||[]),{round:gs.roundIdx+1,title:rnd.t,picks:res,gain:rg,nw:nn}],worthHistory:[...(t.worthHistory||[SC]),nn],submitted:false};
+  });
+  gs.prices=np;gs.allMoves=Object.entries(ch).map(([t,pct])=>({ticker:t,pct})).sort((a,b)=>b.pct-a.pct);gs.phase='reveal';
+  await db.ref(`games/${gameCode}`).set(gs);gameState=gs;renderHReveal(gs);
+}
+
+function renderHReveal(gs){
+  const g=GAMES[gs.gameIdx];if(!g)return;const rnd=g.r[gs.roundIdx];
+  setS('lg-hrev','background',g.c);setS('ttl-hrev','color',g.c);setT('ttl-hrev',`Round ${gs.roundIdx+1} Results`);
+  setT('sub-hrev',`${g.t} â€” ${g.s}`);set('rev-title',`ðŸ“° ${rnd.t}`);setT('rev-sub',`Round ${gs.roundIdx+1} of ${g.r.length} complete`);
+  const sorted=[...(gs.teams||[])].sort((a,b)=>nwOf(b)-nwOf(a));
+  $('rev-cards').innerHTML=(gs.teams||[]).map(t=>{const last=t.history?.[t.history.length-1];const gain=last?.gain||0;
+    return`<div style="background:${t.color}09;border:1px solid ${t.color}35;border-radius:12px;padding:14px;"><div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:7px;"><div style="font-size:14px;font-weight:900;color:${t.color};">${t.emoji} ${t.name}</div><div style="text-align:right;"><div style="font-size:10px;color:#475569;">Net Worth</div><div style="font-size:16px;font-weight:900;color:${t.color};">${fmtS(nwOf(t))}</div></div></div>
+    <div style="font-size:13px;font-weight:700;color:${gain>=0?'#4ade80':'#ef4444'};margin-bottom:5px;">Round: ${gain>=0?'+':''}${fmt(gain)}</div>
+    ${last?.picks?.length>0?`<div style="display:flex;flex-wrap:wrap;gap:3px;">${last.picks.map(p=>`<span style="font-size:10px;background:${p.gain>=0?'rgba(74,222,128,0.12)':'rgba(239,68,68,0.12)'};color:${p.gain>=0?'#4ade80':'#ef4444'};padding:2px 5px;border-radius:4px;font-weight:700;">${p.ticker} ${fmtP(p.pct)}</span>`).join('')}</div>`:'<div style="font-size:11px;color:#334155;font-style:italic;">Skipped</div>'}</div>`;
+  }).join('');
+  $('rev-standings').innerHTML=sorted.map((t,r)=>`<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:${r<sorted.length-1?'1px solid rgba(255,255,255,0.05)':'none'};"><span style="font-size:16px;width:24px;text-align:center;">${MD[r]||r+1+'.'}</span><span style="font-size:14px;">${t.emoji}</span><span style="flex:1;font-size:14px;font-weight:700;color:${t.color};">${t.name}</span><span style="font-size:16px;font-weight:900;color:${nwOf(t)>=SC?'#4ade80':'#ef4444'};">${fmtS(nwOf(t))}</span></div>`).join('');
+  const top5=(gs.allMoves||[]).slice(0,5);const bot5=[...(gs.allMoves||[])].slice(-5).reverse();
+  $('top-g').innerHTML=top5.map(m=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:12px;"><span style="font-weight:800;color:#e2e8f0;width:40px;">${m.ticker}</span><span style="flex:1;color:#334155;font-size:10px;">${STK[m.ticker]?.n||''}</span><span style="color:#4ade80;font-weight:700;">${fmtP(m.pct)}</span></div>`).join('');
+  $('top-l').innerHTML=bot5.map(m=>`<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:12px;"><span style="font-weight:800;color:#e2e8f0;width:40px;">${m.ticker}</span><span style="flex:1;color:#334155;font-size:10px;">${STK[m.ticker]?.n||''}</span><span style="color:#ef4444;font-weight:700;">${fmtP(m.pct)}</span></div>`).join('');
+  const btn=$('btn-next');btn.style.background=g.c;btn.textContent=gs.roundIdx+1>=g.r.length?'ðŸ† Final Results':`Continue to Round ${gs.roundIdx+2} â†’`;
+  go('host-reveal');prevScr='host-reveal';
+}
+
+async function hostNext(){
+  let gs=await db.ref(`games/${gameCode}`).get().then(s=>s.val());
+  const g=GAMES[gs.gameIdx];
+  if(gs.roundIdx+1>=g.r.length){
+    gs.phase='final';await db.ref(`games/${gameCode}`).set(gs);gameState=gs;renderHFinal(gs);go('host-final');
+  }else{
+    gs.roundIdx++;gs.phase='lobby';gs.teams=(gs.teams||[]).map(t=>({...t,submitted:false,roundPicks:[]}));
+    await db.ref(`games/${gameCode}`).set(gs);gameState=gs;renderLobby(gs);go('host-lobby');
+  }
+}
+
+function renderHFinal(gs){
+  const g=GAMES[gs.gameIdx];const sorted=[...(gs.teams||[])].sort((a,b)=>nwOf(b)-nwOf(a));const w=sorted[0];
+  setS('lg-hfin','background',g.c);setS('ttl-hfin','color',g.c);setT('sub-hfin',`${g.t} â€” ${g.s}`);
+  setS('fin-lbl','color',w?.color||'#4ade80');setT('fin-lbl','WINNER');
+  setS('fin-name','color',w?.color||'#4ade80');setT('fin-name',`${w?.emoji} ${w?.name}`);
+  setT('fin-nw',fmt(nwOf(w)));
+  $('fin-list').innerHTML=sorted.map((t,r)=>{const gain=nwOf(t)-SC;
+    return`<div style="display:flex;align-items:center;gap:12px;background:${r===0?t.color+'12':'rgba(255,255,255,0.03)'};border:1px solid ${r===0?t.color:'rgba(255,255,255,0.07)'};border-radius:12px;padding:13px 16px;margin-bottom:10px;">
+      <span style="font-size:20px;">${MD[r]||r+1+'.'}</span><span style="font-size:18px;">${t.emoji}</span>
+      <span style="flex:1;font-size:14px;font-weight:800;color:${t.color};">${t.name}</span>
+      <div style="text-align:right;"><div style="font-size:18px;font-weight:900;color:${t.color};">${fmt(nwOf(t))}</div><div style="font-size:11px;color:${gain>=0?'#4ade80':'#ef4444'};">${gain>=0?'+':''}${fmt(gain)}</div></div>
+    </div>`;
+  }).join('');
+  go('host-final');
+}
+
+async function hostEndGame(){
+  if(gameCode)await db.ref(`games/${gameCode}`).remove();
+  if(dbListener)dbListener();
+  gameCode='';gameState=null;teamId='';myTeam=null;go('home');
+}
+
+function showLB(){
+  if(!gameState)return;
+  const g=GAMES[gameState.gameIdx];
+  setS('lg-lb','background',g.c);setS('ttl-lb','color',g.c);setT('ttl-lb','Leaderboard');
+  const sorted=[...(gameState.teams||[])].sort((a,b)=>nwOf(b)-nwOf(a));
+  $('lb-list').innerHTML=sorted.map((t,r)=>{const nw=nwOf(t);const gain=nw-SC;
+    return`<div style="background:${r===0?t.color+'12':'rgba(255,255,255,0.04)'};border:${r===0?2:1}px solid ${r===0?t.color:'rgba(255,255,255,0.08)'};border-radius:14px;padding:14px 18px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span style="font-size:24px;">${MD[r]||r+1+'.'}</span><span style="font-size:22px;">${t.emoji}</span>
+        <div style="flex:1;"><div style="font-size:17px;font-weight:900;color:${t.color};">${t.name}</div><div style="font-size:11px;color:#475569;">Cash: ${fmtS(t.cash||0)}</div></div>
+        <div style="text-align:right;"><div style="font-size:22px;font-weight:900;color:${t.color};">${fmtS(nw)}</div><div style="font-size:13px;color:${gain>=0?'#4ade80':'#ef4444'};font-weight:700;">${gain>=0?'+':''}${fmtS(gain)}</div></div>
+      </div>
+    </div>`;
+  }).join('');
+  $('lb-back').onclick=()=>go(prevScr);
+  go('lb');
+}
+
+// TEAM JOIN
+async function teamJoin(){
+  const code=($('j-code').value||'').trim().toUpperCase();
+  const name=($('j-name').value||'').trim();
+  const err=$('j-err');err.style.display='none';
+  const showErr=msg=>{err.textContent=msg;err.style.display='block';};
+  if(!code||!name){showErr('Please enter both a game code and team name.');return;}
+  const btn=$('btn-join');btn.disabled=true;btn.textContent='Joining...';
+  const snap=await db.ref(`games/${code}`).get();
+  if(!snap.exists()){showErr('Game not found. Check the code and try again.');btn.disabled=false;btn.textContent='Join Game â†’';return;}
+  const gs=snap.val();
+  if(gs.phase!=='lobby'){showErr('This game has already started.');btn.disabled=false;btn.textContent='Join Game â†’';return;}
+  if((gs.teams||[]).length>=gs.maxTeams){showErr('This game is full.');btn.disabled=false;btn.textContent='Join Game â†’';return;}
+  if((gs.teams||[]).find(t=>t.name.toLowerCase()===name.toLowerCase())){showErr('That team name is already taken.');btn.disabled=false;btn.textContent='Join Game â†’';return;}
+  const idx=(gs.teams||[]).length;
+  const id=`t_${Date.now()}_${Math.random().toString(36).slice(2,6)}`;
+  const newT={id,name,color:TC[idx],emoji:TE[idx],cash:SC,portfolio:{},prices:iP(),history:[],worthHistory:[SC],submitted:false,roundPicks:[]};
+  gs.teams=[...(gs.teams||[]),newT];
+  await db.ref(`games/${code}`).set(gs);
+  gameCode=code;teamId=id;myTeam=newT;gameState=gs;
+  if(dbListener)dbListener();
+  dbListener=()=>db.ref(`games/${code}`).off();
+  db.ref(`games/${code}`).on('value',snap=>{if(snap.exists()){const g=snap.val();gameState=g;const t=(g.teams||[]).find(t=>t.id===teamId);if(t)myTeam=t;onTeamChange(g);}});
+  renderWait(gs,newT);go('team-wait');
+  btn.disabled=false;btn.textContent='Join Game â†’';
+}
+
+function onTeamChange(gs){
+  const t=(gs.teams||[]).find(t=>t.id===teamId);if(t)myTeam=t;
+  const sc=document.querySelector('.screen.active')?.id;
+  if(gs.phase==='lobby'&&(sc==='s-team-subm'||sc==='s-team-res'||sc==='s-team-wait')){renderWait(gs,myTeam);go('team-wait');}
+  if(gs.phase==='investing'&&!myTeam?.submitted&&sc!=='s-team-invest'){renderInvest(gs,myTeam);go('team-invest');}
+  if(gs.phase==='investing'&&myTeam?.submitted&&sc==='s-team-invest'){renderSubm(gs,myTeam);go('team-subm');}
+  if(gs.phase==='reveal'&&sc!=='s-team-res'){renderTeamRes(gs,myTeam);go('team-res');}
+  if(gs.phase==='final'&&sc!=='s-team-fin'){renderTeamFin(gs,myTeam);go('team-fin');}
+  if(sc==='s-team-wait')renderWait(gs,myTeam);
+  if(sc==='s-team-subm')renderSubm(gs,myTeam);
+}
+
+function renderWait(gs,t){
+  if(!t)return;
+  const g=GAMES[gs.gameIdx];
+  setS('lg-tw','background',t.color);setT('lg-tw',t.emoji);setS('ttl-tw','color',t.color);setT('ttl-tw',t.name);
+  setT('sub-tw',`Round ${gs.roundIdx+1} of ${g.r.length}${gs.hardMode?' Â· ðŸ”¥ HARD':''}`);
+  setT('tw-emoji',t.emoji);setS('tw-name','color',t.color);setT('tw-name',t.name);
+  setT('tw-code',`Game Code: ${gs.code}`);setS('tw-nw','color',t.color);setT('tw-nw',fmtS(nwOf(t)));
+  setT('tw-msg',gs.phase==='lobby'?'Waiting for host to start the round...':'Round in progress...');
+  $('tw-teams').innerHTML=(gs.teams||[]).map(tm=>`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><span>${tm.emoji}</span><span style="font-size:13px;color:${tm.color};font-weight:700;">${tm.name}</span>${tm.id===teamId?'<span style="font-size:10px;color:#475569;">(you)</span>':''}</div>`).join('');
+}
+
+function renderInvest(gs,t){
+  if(!t)return;
+  sharesInput={};
+  const g=GAMES[gs.gameIdx];if(!g)return;const rnd=g.r[gs.roundIdx];
+  setS('lg-ti','background',t.color);setT('lg-ti',t.emoji);setS('ttl-ti','color',t.color);setT('ttl-ti',`${t.name}'s Turn`);
+  setT('sub-ti',`Round ${gs.roundIdx+1} Â· Invest Now`);setT('ti-cash',fmtS(t.cash));setS('ti-nw','color',t.color);setT('ti-nw',fmtS(nwOf(t)));
+  $('ti-news').style.cssText=`border-radius:12px;padding:14px 18px;margin-bottom:12px;background:${t.color}07;border:1px solid ${t.color}35;`;
+  $('ti-news').innerHTML=`<div style="font-size:10px;color:${t.color};letter-spacing:2px;font-weight:800;text-transform:uppercase;">ðŸ“° ${rnd.h} â€” ROUND ${gs.roundIdx+1}</div>
+    <div style="font-size:16px;font-weight:800;color:#f1f5f9;margin:7px 0 8px;line-height:1.3;">${rnd.t}</div>
+    <div style="font-size:13px;color:#cbd5e1;line-height:1.7;margin-bottom:9px;">${rnd.st}</div>
+    <div style="display:flex;gap:5px;flex-wrap:wrap;">${((gs.hardMode ? rnd.hardHints : rnd.hints) || rnd.hints || []).map(h=>`<span style="font-size:11px;background:${gs.hardMode?'rgba(239,68,68,0.08)':'rgba(255,255,255,0.06)'};color:${gs.hardMode?'#f87171':'#94a3b8'};padding:3px 8px;border-radius:4px;">${gs.hardMode?'âš ï¸':'ðŸ’¡'} ${h}</span>`).join('')}</div>`;
+  const hold=$('ti-hold');
+  if(t.portfolio&&Object.keys(t.portfolio).length>0){
+    hold.style.display='block';hold.style.cssText=`display:block;background:${t.color}07;border:1px solid ${t.color}25;border-radius:9px;padding:9px 13px;margin-bottom:10px;`;
+    hold.innerHTML=`<div style="font-size:10px;color:${t.color};letter-spacing:1px;margin-bottom:6px;">YOUR HOLDINGS</div><div style="display:flex;flex-wrap:wrap;gap:5px;">${Object.entries(t.portfolio).map(([tk,{shares}])=>`<span style="background:${t.color}14;border:1px solid ${t.color}30;border-radius:5px;padding:2px 7px;font-size:11px;color:${t.color};font-weight:700;">${tk} Ã—${shares}</span>`).join('')}</div>`;
+  }else hold.style.display='none';
+  setT('ti-cashlbl',`Cash: ${fmt(t.cash)}`);
+  renderGrid();updateCost();
+}
+
+function renderGrid(){
+  const filter=$('ind-filter').value;const t=myTeam;if(!t)return;
+  const tickers=Object.entries(STK).filter(([,s])=>filter==='all'||s.i===filter);
+  $('sgrid').innerHTML=tickers.map(([ticker,stk])=>{
+    const buyQty=parseInt(sharesInput['buy_'+ticker])||0;
+    const sellQty=parseInt(sharesInput['sell_'+ticker])||0;
+    const held=(t.portfolio||{})[ticker]?.shares||0;
+    const active=buyQty>0||sellQty>0;
+    const maxB=Math.floor(t.cash/(t.prices[ticker]||1));
+    const price=t.prices[ticker]||0;
+    return`<div id="sc-${ticker}" style="border-radius:9px;padding:10px;border:${active?2:1}px solid ${active?t.color:'rgba(255,255,255,0.07)'};background:${active?t.color+'09':'rgba(255,255,255,0.02)'};">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;">
+        <div><span style="background:${active?t.color:'#1e3a5f'};color:${active?'#0a0f1e':'#64748b'};font-weight:900;font-size:11px;padding:2px 6px;border-radius:3px;">${ticker}</span>
+          <div style="font-size:11px;font-weight:700;color:#e2e8f0;margin-top:4px;line-height:1.3;">${stk.n}</div>
+          <div style="font-size:9px;color:#475569;margin-top:1px;">${stk.i}</div></div>
+        <div style="text-align:right;flex-shrink:0;margin-left:4px;">
+          <div style="font-size:13px;font-weight:900;color:${t.color};">${fmt(price)}</div>
+          ${held>0?`<div style="font-size:9px;color:#facc15;font-weight:700;">own ${held}</div>`:`<div style="font-size:9px;color:#334155;">max ${maxB}</div>`}
+        </div>
+      </div>
+      <div style="display:flex;gap:5px;margin-bottom:${buyQty>0||sellQty>0?4:0}px;">
+        <div style="flex:1;">
+          <div style="font-size:9px;color:#4ade80;font-weight:700;margin-bottom:2px;">BUY</div>
+          <input type="number" min="0" max="${maxB}" value="${sharesInput['buy_'+ticker]||''}" placeholder="0"
+            style="width:100%;background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:6px;padding:4px 7px;color:#f1f5f9;font-size:12px;outline:none;font-family:Georgia,serif;"
+            oninput="handleQty('buy_${ticker}',this.value,${maxB},'buy')"/>
+        </div>
+        ${held>0?`<div style="flex:1;">
+          <div style="font-size:9px;color:#ef4444;font-weight:700;margin-bottom:2px;">SELL</div>
+          <input type="number" min="0" max="${held}" value="${sharesInput['sell_'+ticker]||''}" placeholder="0"
+            style="width:100%;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:6px;padding:4px 7px;color:#f1f5f9;font-size:12px;outline:none;font-family:Georgia,serif;"
+            oninput="handleQty('sell_${ticker}',this.value,${held},'sell')"/>
+        </div>`:''}
+      </div>
+      ${buyQty>0?`<div style="font-size:10px;color:#4ade80;margin-top:2px;">Buy cost: ${fmt(buyQty*price)}</div>`:''}
+      ${sellQty>0?`<div style="font-size:10px;color:#ef4444;margin-top:2px;">Sell gain: +${fmt(sellQty*price)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function handleQty(key,val,max){
+  const n=Math.min(Math.max(0,parseInt(val)||0),max);
+  sharesInput[key]=n===0?'':String(n);
+  const t=myTeam;if(!t)return;
+  // extract base ticker (strip buy_ or sell_ prefix)
+  const ticker=key.replace(/^(buy_|sell_)/,'');
+  const sc=$(`sc-${ticker}`);
+  const buyQ=parseInt(sharesInput['buy_'+ticker])||0;
+  const sellQ=parseInt(sharesInput['sell_'+ticker])||0;
+  const active=buyQ>0||sellQ>0;
+  if(sc){sc.style.border=active?`2px solid ${t.color}`:'1px solid rgba(255,255,255,0.07)';sc.style.background=active?`${t.color}09`:'rgba(255,255,255,0.02)';}
+  updateCost();
+}
+
+function updateCost(){
+  const t=myTeam;if(!t)return;
+  let buyCost=0,sellGain=0;
+  Object.entries(sharesInput).forEach(([key,q])=>{
+    const n=parseInt(q)||0;if(n<=0)return;
+    if(key.startsWith('buy_')){const tk=key.slice(4);buyCost+=n*(t.prices[tk]||0);}
+    if(key.startsWith('sell_')){const tk=key.slice(5);sellGain+=n*(t.prices[tk]||0);}
+  });
+  const net=buyCost-sellGain;
+  const hasActivity=buyCost>0||sellGain>0;
+  setT('cost-disp',net>=0?`Spending ${fmt(net)}`:`Gaining ${fmt(-net)}`);
+  setS('cost-disp','color',net>t.cash?'#ef4444':'#f1f5f9');
+  setT('rem-disp',`Cash after: ${fmt(t.cash-net)}`);
+  const btn=$('btn-sub');btn.disabled=!hasActivity||net>t.cash;btn.style.background=t.color;btn.style.color='#0a0f1e';
+}
+
+async function teamSubmit(skip=false){
+  if(!gameCode||!teamId)return;
+  const snap=await db.ref(`games/${gameCode}`).get();const gs=snap.val();
+  const tIdx=(gs.teams||[]).findIndex(t=>t.id===teamId);if(tIdx<0)return;
+  const t=gs.teams[tIdx];const picks=[];
+  if(!skip){
+    // process buys
+    Object.entries(sharesInput).forEach(([key,qty])=>{
+      const q=parseInt(qty)||0;if(q<=0)return;
+      if(key.startsWith('buy_')){const ticker=key.slice(4);picks.push({ticker,qty:q,price:t.prices[ticker],action:'buy'});}
+      if(key.startsWith('sell_')){const ticker=key.slice(5);picks.push({ticker,qty:-q,price:t.prices[ticker],action:'sell'});}
+    });
+  }
+  gs.teams[tIdx]={...t,submitted:true,roundPicks:picks};
+  await db.ref(`games/${gameCode}`).set(gs);
+  myTeam=gs.teams[tIdx];gameState=gs;sharesInput={};
+  renderSubm(gs,myTeam);go('team-subm');
+}
+
+function renderSubm(gs,t){
+  if(!t)return;
+  setS('lg-ts','background',t.color);setT('lg-ts',t.emoji);setS('ttl-ts','color',t.color);setT('ttl-ts',t.name);
+  const picks=t.roundPicks||[];
+  $('ts-picks').innerHTML=picks.length>0?picks.map(p=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05);font-size:13px;"><span style="font-weight:700;color:#e2e8f0;">${p.ticker} â€” ${STK[p.ticker]?.n||''}</span><span style="color:#4ade80;">${p.qty} @ ${fmt(p.price)}</span></div>`).join(''):'<div style="color:#475569;font-style:italic;">Skipped this round</div>';
+  const waiting=(gs.teams||[]).filter(t=>!t.submitted).length;
+  setT('ts-wait',`â³ Waiting for ${waiting} more team${waiting!==1?'s':''} to submit...`);
+}
+
+function renderTeamRes(gs,t){
+  if(!t)return;
+  const g=GAMES[gs.gameIdx];
+  setS('lg-tr','background',t.color);setT('lg-tr',t.emoji);setS('ttl-tr','color',t.color);setT('ttl-tr',t.name);
+  setT('sub-tr',`Round ${gs.roundIdx} Results`);
+  const last=t.history?.[t.history.length-1];const gain=last?.gain||0;
+  const sorted=[...(gs.teams||[])].sort((a,b)=>nwOf(b)-nwOf(a));const myRank=sorted.findIndex(tm=>tm.id===teamId)+1;
+  $('tr-pnl').style.cssText=`border-radius:14px;padding:18px 20px;margin-bottom:16px;text-align:center;background:${gain>=0?'rgba(74,222,128,0.07)':'rgba(239,68,68,0.07)'};border:1px solid ${gain>=0?'rgba(74,222,128,0.3)':'rgba(239,68,68,0.3)'};`;
+  $('tr-pnl').innerHTML=`<div style="font-size:11px;color:#475569;letter-spacing:1px;margin-bottom:4px;">ROUND P&L</div>
+    <div style="font-size:30px;font-weight:900;color:${gain>=0?'#4ade80':'#ef4444'};">${gain>=0?'â–² +':'â–¼ '}${fmt(Math.abs(gain))}</div>
+    <div style="font-size:13px;color:#64748b;margin-top:4px;">Net Worth: <strong style="color:${t.color};">${fmt(nwOf(t))}</strong></div>
+    <div style="font-size:13px;color:#64748b;margin-top:2px;">Ranked <strong style="color:#facc15;">#${myRank}</strong> of ${sorted.length}</div>`;
+  $('tr-picks').innerHTML=`<span class="lbl">YOUR PICKS</span>`+(last?.picks?.length>0?last.picks.map(p=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);"><div><span style="font-weight:700;color:#e2e8f0;font-size:14px;">${p.ticker}</span><span style="font-size:11px;color:#475569;margin-left:6px;">${p.qty} shares</span></div><div style="text-align:right;"><div style="font-size:13px;font-weight:700;color:${p.gain>=0?'#4ade80':'#ef4444'};">${fmtP(p.pct)}</div><div style="font-size:11px;color:${p.gain>=0?'#4ade80':'#ef4444'};">${p.gain>=0?'+':''}${fmt(p.gain)}</div></div></div>`).join(''):'<div style="color:#475569;font-style:italic;font-size:13px;">You skipped this round.</div>');
+  $('tr-lb').innerHTML=sorted.map((tm,r)=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(255,255,255,0.05);background:${tm.id===teamId?tm.color+'08':'transparent'};border-radius:5px;"><span style="font-size:14px;width:22px;text-align:center;">${MD[r]||r+1+'.'}</span><span style="font-size:13px;">${tm.emoji}</span><span style="flex:1;font-size:13px;font-weight:${tm.id===teamId?900:600};color:${tm.color};">${tm.name}${tm.id===teamId?' (you)':''}</span><span style="font-size:14px;font-weight:900;color:${nwOf(tm)>=SC?'#4ade80':'#ef4444'};">${fmtS(nwOf(tm))}</span></div>`).join('');
+}
+
+function renderTeamFin(gs,t){
+  if(!t)return;
+  const g=GAMES[gs.gameIdx];
+  setS('lg-tf','background',t.color);setT('lg-tf',t.emoji);setS('ttl-tf','color',t.color);setT('sub-tf',`${g.t} â€” ${g.s}`);
+  const sorted=[...(gs.teams||[])].sort((a,b)=>nwOf(b)-nwOf(a));const myRank=sorted.findIndex(tm=>tm.id===teamId)+1;
+  const nw=nwOf(t);const gain=nw-SC;
+  setT('tf-medal',MD[myRank-1]||'ðŸ“Š');setS('tf-lbl','color',t.color);setT('tf-lbl',myRank===1?'ðŸŽ‰ WINNER!':'YOUR FINAL RESULT');
+  setS('tf-name','color',t.color);setT('tf-name',`${t.emoji} ${t.name}`);setT('tf-nw',fmt(nw));
+  setS('tf-gain','color',gain>=0?'#4ade80':'#ef4444');setT('tf-gain',`${gain>=0?'â–² +':'â–¼ '}${fmt(Math.abs(gain))} (${gain>=0?'+':''}${((gain/SC)*100).toFixed(1)}%)`);
+  setT('tf-rank',`Ranked #${myRank} of ${sorted.length}`);
+  $('tf-lb').innerHTML=sorted.map((tm,r)=>`<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.05);background:${tm.id===teamId?tm.color+'09':'transparent'};border-radius:6px;"><span style="font-size:17px;">${MD[r]||r+1+'.'}</span><span style="font-size:15px;">${tm.emoji}</span><span style="flex:1;font-size:13px;font-weight:${tm.id===teamId?900:600};color:${tm.color};">${tm.name}${tm.id===teamId?' â—€':''}</span><div style="text-align:right;"><div style="font-size:15px;font-weight:900;color:${tm.color};">${fmtS(nwOf(tm))}</div></div></div>`).join('');
+}
+
+function teamLeave(){if(dbListener)dbListener();gameCode='';teamId='';myTeam=null;gameState=null;go('home');}
+
+initUI();
+</script>
+</body>
+</html>
+
